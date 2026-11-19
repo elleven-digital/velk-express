@@ -21,8 +21,9 @@ Railway's interface changes over time; the steps describe what to configure rath
   |---|---|
   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
   | `APP_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
+  | `PORT` | `3000` |
 
-  `RAILWAY_PUBLIC_DOMAIN` is the domain Railway generates for the service. Leave the optional variables (SMTP, S3, Stripe, Mercado Pago) out of the template, or add them as optional with an empty default and a description from [configuration](configuration.md).
+  `RAILWAY_PUBLIC_DOMAIN` is the domain Railway generates for the service; generate the domain before the first deploy, or `APP_URL` starts empty and the log warns that it was ignored. Without `PORT`, Railway's own value (usually `8080`) wins and the domain on port `3000` gets no answer. Leave the optional variables (SMTP, S3, Stripe, Mercado Pago) out of the template, or add them as optional with an empty default and a description from [configuration](configuration.md).
 
 - **Networking:** a generated public domain on port `3000`.
 - **Deploy settings:**

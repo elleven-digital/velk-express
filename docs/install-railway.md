@@ -30,9 +30,10 @@ If the README has a "Deploy on Railway" button, click it. The template creates e
 
    ```
    DATABASE_URL=${{Postgres.DATABASE_URL}}
+   PORT=3000
    ```
 
-   `Postgres` is the name of the database service. If yours has another name, use that name.
+   `Postgres` is the name of the database service. If yours has another name, use that name. Railway gives each service its own `PORT` (usually `8080`); setting it to `3000` keeps the app on the port the domain points to.
 
 6. In the service's **networking** settings, generate a public domain and set the port to `3000`.
 7. Back in the variables, add the public address, using the domain you just generated:
