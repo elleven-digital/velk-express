@@ -42,6 +42,7 @@ Elestio's interface changes over time. Where this guide describes a step by what
          SMTP_PORT: ${SMTP_PORT:-}
          SMTP_USER: ${SMTP_USER:-}
          SMTP_PASS: ${SMTP_PASS:-}
+         RESEND_API_KEY: ${RESEND_API_KEY:-}
          MAIL_FROM: ${MAIL_FROM:-}
          STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
          STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

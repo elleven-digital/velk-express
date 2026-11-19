@@ -15,8 +15,8 @@ import { sendMail } from "@/lib/mail/send";
 import { clientIp, forgotRules, passesAll, rateLimit } from "@/lib/rate-limit";
 
 async function issueAndSend(side: Side, email: string, publicLocale: Awaited<ReturnType<typeof getPublicLocale>>) {
-  // No SMTP: nothing can be delivered, and a new token would cancel a reset link the owner copied.
-  if (!canDeliverResetMail(getConfig().smtp)) return;
+  // No e-mail set up: nothing can be delivered, and a new token would cancel a reset link the owner copied.
+  if (!canDeliverResetMail(getConfig().mail)) return;
   const user = await findUserForReset(side, email);
   if (!user) return;
   const raw = await issueAuthToken("reset", userTypeFor(side), user.id);
@@ -37,7 +37,7 @@ async function issueAndSend(side: Side, email: string, publicLocale: Awaited<Ret
 /**
  * Always answers the same way, at the same speed, whether or not the email
  * belongs to someone: the lookup, token and mail run after the response.
- * Without SMTP nothing is sent; the owner can create reset links on the team page.
+ * Without e-mail set up nothing is sent; the owner can create reset links on the team page.
  */
 export async function forgotAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { t, locale } = await getPublicDict();

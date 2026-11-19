@@ -1,10 +1,10 @@
 import "server-only";
 import nodemailer from "nodemailer";
-import { getConfig, type SmtpConfig } from "@/lib/config";
+import { getConfig, type MailConfig, type SmtpConfig } from "@/lib/config";
 
 export type MailMessage = { to: string; subject: string; html: string; text: string };
 
-/** The minimal slice of a nodemailer transport that we use. */
+/** The minimal slice of a nodemailer transport that we use; the Resend transport has the same shape. */
 export type Transport = {
   sendMail(options: { from: string; to: string; subject: string; html: string; text: string }): Promise<unknown>;
 };
@@ -25,33 +25,66 @@ export function transportOptions(smtp: SmtpConfig) {
   };
 }
 
-function getDefaultTransport(smtp: SmtpConfig): Transport {
-  defaultTransport ??= nodemailer.createTransport(transportOptions(smtp));
+const RESEND_URL = "https://api.resend.com/emails";
+
+/**
+ * Sends through the Resend HTTPS API, for hosts that block outbound SMTP.
+ * Throws on a non-2xx answer with Resend's own message (never the API key).
+ */
+export function resendTransport(apiKey: string, fetchFn: typeof fetch = fetch): Transport {
+  return {
+    async sendMail({ from, to, subject, html, text }) {
+      const res = await fetchFn(RESEND_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "User-Agent": "velk-express",
+        },
+        body: JSON.stringify({ from, to: [to], subject, html, text }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (res.ok) return;
+      let detail = res.statusText;
+      try {
+        const body = (await res.json()) as { message?: unknown };
+        if (typeof body.message === "string" && body.message) detail = body.message;
+      } catch {
+        // keeps the status text
+      }
+      throw new Error(`Resend API returned ${res.status}: ${detail}`);
+    },
+  };
+}
+
+function getDefaultTransport(mail: MailConfig): Transport {
+  defaultTransport ??=
+    mail.provider === "resend" ? resendTransport(mail.apiKey) : nodemailer.createTransport(transportOptions(mail));
   return defaultTransport;
 }
 
 /**
- * Sends one e-mail. Never throws: returns `{ sent: false }` when SMTP is not
+ * Sends one e-mail. Never throws: returns `{ sent: false }` when e-mail is not
  * configured or the transport fails.
  *
- * `smtp` defaults to the app config and decides both whether mail is enabled
- * and the `from` address; tests pass it (together with a fake `transport`)
- * instead of touching the environment.
+ * `mail` defaults to the app config and decides whether mail is enabled, how
+ * it is sent and the `from` address; tests pass it (together with a fake
+ * `transport`) instead of touching the environment.
  */
 export async function sendMail(
   msg: MailMessage,
   transport?: Transport,
-  smtp: SmtpConfig | null = getConfig().smtp,
+  mail: MailConfig | null = getConfig().mail,
 ): Promise<{ sent: boolean }> {
-  if (!smtp) {
+  if (!mail) {
     if (!warnedDisabled) {
       warnedDisabled = true;
-      console.log("[mail] SMTP not configured; skipping");
+      console.log("[mail] e-mail not configured; skipping");
     }
     return { sent: false };
   }
   try {
-    await (transport ?? getDefaultTransport(smtp)).sendMail({ from: smtp.from, ...msg });
+    await (transport ?? getDefaultTransport(mail)).sendMail({ from: mail.from, ...msg });
     return { sent: true };
   } catch (err) {
     const domain = msg.to.split("@").pop() ?? "unknown";

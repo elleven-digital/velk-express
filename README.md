@@ -41,7 +41,7 @@ Pick the guide for where you want to run it:
 
 1. **Open the address right away and finish the install screen.** Until someone creates the agency, the install screen is open to anyone who can reach the address.
 2. Check **Settings → Installation**: the public address, e-mail, file storage and payments status.
-3. Set up e-mail (SMTP) if you want invites and notifications sent by e-mail. Without it, invite and password links are shown in the panel for you to copy.
+3. Set up e-mail (SMTP or the Resend API) if you want invites and notifications sent by e-mail. Without it, invite and password links are shown in the panel for you to copy.
 4. Invite your team, add clients and invite them to the portal.
 5. To take payments, follow the [payments guide](docs/payments.md).
 6. Turn on your hosting's database backups: Velk Express does not back itself up. See [backup and restore](docs/backup-and-restore.md).

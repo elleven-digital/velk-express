@@ -278,7 +278,7 @@ type Invited = {
 
 /**
  * Gives an e-mail access to the company. A new e-mail gets a login without password and an
- * invite link, which is also e-mailed when SMTP is set up. An e-mail that already has a login
+ * invite link, which is also e-mailed when e-mail is set up. An e-mail that already has a login
  * (in another company) is never linked silently: the team first gets the outcome "confirm" with
  * the login's own companies, and links only by sending back `confirm` with that login's id and
  * its current active flag and the role it would get (checked under the locks, so a pending login

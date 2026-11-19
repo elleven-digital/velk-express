@@ -212,7 +212,8 @@ export async function getPaymentSettings(
 export type InstallationStatus = {
   appUrl: string;
   appUrlLockedByEnv: boolean;
-  mail: boolean;
+  /** How e-mail is sent, or null when it is off. */
+  mail: "smtp" | "resend" | null;
   storage: { mode: "disk" | "s3"; writable: boolean };
   payments: { stripe: boolean; mercadoPago: boolean };
   version: string;
@@ -231,7 +232,7 @@ export async function getInstallationStatus(): Promise<InstallationStatus> {
   return {
     appUrl,
     appUrlLockedByEnv: config.appUrl !== null,
-    mail: config.smtp !== null,
+    mail: config.mail?.provider ?? null,
     storage,
     payments: { stripe: config.stripe !== null, mercadoPago: config.mercadoPago !== null },
     version: APP_VERSION,

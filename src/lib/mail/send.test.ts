@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SmtpConfig } from "@/lib/config";
-import { sendMail, transportOptions, type Transport } from "./send";
+import type { MailConfig } from "@/lib/config";
+import { resendTransport, sendMail, transportOptions, type Transport } from "./send";
 
-const smtp: SmtpConfig = { host: "smtp.example.com", port: 587, user: "u", pass: "secret-pass", from: "Agency <no-reply@agency.test>" };
+const smtp = { provider: "smtp", host: "smtp.example.com", port: 587, user: "u", pass: "secret-pass", from: "Agency <no-reply@agency.test>" } satisfies MailConfig;
 const msg = { to: "client@customer.test", subject: "Hi", html: "<p>Hi</p>", text: "Hi" };
 
 afterEach(() => vi.restoreAllMocks());
@@ -14,7 +14,7 @@ describe("sendMail", () => {
     expect(await sendMail(msg, transport, null)).toEqual({ sent: false });
     expect(await sendMail(msg, transport, null)).toEqual({ sent: false });
     expect(transport.sendMail).not.toHaveBeenCalled();
-    expect(log.mock.calls.filter((c) => String(c[0]).includes("[mail] SMTP not configured; skipping"))).toHaveLength(1);
+    expect(log.mock.calls.filter((c) => String(c[0]).includes("[mail] e-mail not configured; skipping"))).toHaveLength(1);
   });
 
   it("returns sent:false and does not throw when the transport fails", async () => {
@@ -48,5 +48,49 @@ describe("transportOptions", () => {
       auth: { user: "u", pass: "secret-pass" },
     });
     expect(transportOptions({ ...smtp, port: 465, user: null }).secure).toBe(true);
+  });
+});
+
+describe("resendTransport", () => {
+  const resend = { provider: "resend", apiKey: "re_secret_key", from: "Agency <no-reply@agency.test>" } satisfies MailConfig;
+
+  it("posts the message to the Resend API with the key as a bearer token", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "e1" }), { status: 200 }));
+    expect(await sendMail(msg, resendTransport(resend.apiKey, fetchFn), resend)).toEqual({ sent: true });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchFn.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer re_secret_key");
+    expect(JSON.parse(String(init.body))).toEqual({
+      from: resend.from,
+      to: ["client@customer.test"],
+      subject: "Hi",
+      html: "<p>Hi</p>",
+      text: "Hi",
+    });
+  });
+
+  it("logs Resend's error message without the API key", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const body = JSON.stringify({ statusCode: 403, name: "validation_error", message: "The agency.test domain is not verified." });
+    const fetchFn = vi.fn().mockResolvedValue(new Response(body, { status: 403 }));
+    expect(await sendMail(msg, resendTransport(resend.apiKey, fetchFn), resend)).toEqual({ sent: false });
+    const line = String(error.mock.calls[0]?.join(" "));
+    expect(line).toContain("Resend API returned 403: The agency.test domain is not verified.");
+    expect(line).not.toContain("re_secret_key");
+  });
+
+  it("falls back to the status when the error body is not JSON", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response("oops", { status: 502, statusText: "Bad Gateway" }));
+    await expect(resendTransport("k", fetchFn).sendMail({ from: "a@x.test", ...msg })).rejects.toThrow(
+      "Resend API returned 502: Bad Gateway",
+    );
+  });
+
+  it("reports a network failure as not sent", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchFn = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    expect(await sendMail(msg, resendTransport(resend.apiKey, fetchFn), resend)).toEqual({ sent: false });
   });
 });

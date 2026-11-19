@@ -237,7 +237,7 @@ export default async function SettingsPage() {
             </div>
             <dl className="divide-y divide-line">
               <Row label={s.mail}>
-                <Badge tone={status.mail ? "ok" : "muted"}>{status.mail ? s.mailOn : s.mailOff}</Badge>
+                <Badge tone={status.mail ? "ok" : "muted"}>{status.mail === "resend" ? s.mailOnResend : status.mail ? s.mailOn : s.mailOff}</Badge>
               </Row>
               <Row label={s.storage}>
                 <Badge tone={status.storage.writable ? "ok" : "danger"}>

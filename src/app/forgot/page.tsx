@@ -14,7 +14,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
   const side = parseSide((await searchParams).side);
   const { t } = await getPublicDict();
   const agency = await getAgency();
-  const canMail = canDeliverResetMail(getConfig().smtp);
+  const canMail = canDeliverResetMail(getConfig().mail);
 
   return (
     <AuthShell

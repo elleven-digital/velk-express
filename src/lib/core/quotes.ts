@@ -301,7 +301,7 @@ async function resolveRecipient(db: Db, quote: Quote): Promise<Recipient | null>
 /**
  * Marks the quote as sent (draft or sent; `sentAt` keeps its first date) and e-mails the public
  * link to the client or prospect in the recipient's language. `emailedTo` is null when nobody
- * could be e-mailed or the mail was not sent (for instance, no SMTP): the quote is sent either way.
+ * could be e-mailed or the mail was not sent (for instance, e-mail is not set up): the quote is sent either way.
  */
 export async function sendQuote(
   actor: TeamSession,

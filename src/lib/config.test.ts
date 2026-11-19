@@ -16,7 +16,7 @@ describe("readConfig", () => {
     expect(c.appUrl).toBeNull();
     expect(c.secretKey).toBeNull();
     expect(c.s3).toBeNull();
-    expect(c.smtp).toBeNull();
+    expect(c.mail).toBeNull();
     expect(c.stripe).toBeNull();
     expect(c.mercadoPago).toBeNull();
     expect(c.updateCheck).toBe(true);
@@ -63,14 +63,32 @@ describe("readConfig", () => {
 
   it("handles SMTP", () => {
     const c = readConfig({ ...base, SMTP_HOST: "smtp.x" });
-    expect(c.smtp).toBeNull();
+    expect(c.mail).toBeNull();
     expect(c.warnings.some((w) => w.includes("MAIL_FROM"))).toBe(true);
     const d = readConfig({ ...base, SMTP_HOST: "smtp.x", MAIL_FROM: "a@x.com" });
-    expect(d.smtp).toEqual({ host: "smtp.x", port: 587, user: null, pass: null, from: "a@x.com" });
+    expect(d.mail).toEqual({ provider: "smtp", host: "smtp.x", port: 587, user: null, pass: null, from: "a@x.com" });
     const e = readConfig({
       ...base, SMTP_HOST: "smtp.x", MAIL_FROM: "a@x.com", SMTP_PORT: "465", SMTP_USER: "u", SMTP_PASS: "p",
     });
-    expect(e.smtp).toEqual({ host: "smtp.x", port: 465, user: "u", pass: "p", from: "a@x.com" });
+    expect(e.mail).toEqual({ provider: "smtp", host: "smtp.x", port: 465, user: "u", pass: "p", from: "a@x.com" });
+  });
+
+  it("handles the Resend API", () => {
+    const c = readConfig({ ...base, RESEND_API_KEY: "re_x" });
+    expect(c.mail).toBeNull();
+    expect(c.warnings.some((w) => w.includes("MAIL_FROM"))).toBe(true);
+    const d = readConfig({ ...base, RESEND_API_KEY: "re_x", MAIL_FROM: "a@x.com" });
+    expect(d.mail).toEqual({ provider: "resend", apiKey: "re_x", from: "a@x.com" });
+    expect(d.warnings).toEqual([]);
+    const both = readConfig({ ...base, RESEND_API_KEY: "re_x", SMTP_HOST: "smtp.x", MAIL_FROM: "a@x.com" });
+    expect(both.mail).toEqual({ provider: "resend", apiKey: "re_x", from: "a@x.com" });
+    expect(both.warnings.some((w) => w.includes("SMTP is ignored"))).toBe(true);
+  });
+
+  it("warns when MAIL_FROM has no way to send", () => {
+    const c = readConfig({ ...base, MAIL_FROM: "a@x.com" });
+    expect(c.mail).toBeNull();
+    expect(c.warnings.some((w) => w.includes("SMTP_HOST or RESEND_API_KEY"))).toBe(true);
   });
 
   it("handles Stripe and Mercado Pago pairs", () => {
@@ -99,7 +117,7 @@ describe("readConfig", () => {
     const empty = Object.fromEntries(
       [
         "APP_URL", "SECRET_KEY", "S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
-        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "RESEND_API_KEY", "MAIL_FROM", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
         "MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET", "UPDATE_CHECK",
       ].map((k) => [k, ""]),
     );

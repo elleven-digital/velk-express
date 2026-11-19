@@ -4,7 +4,7 @@ What to keep safe:
 
 - **The database.** Everything except uploaded files.
 - **Uploaded files.** In `DATA_DIR/files` (default `/data/files`) on disk, or in your S3 bucket.
-- **Your variables** (`.env` or your platform's variables), especially the payment and SMTP secrets.
+- **Your variables** (`.env` or your platform's variables), especially the payment and e-mail secrets.
 
 ## Turn on backups before you use the panel
 

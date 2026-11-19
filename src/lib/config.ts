@@ -12,6 +12,9 @@ export type SmtpConfig = {
   pass: string | null;
   from: string;
 };
+export type ResendConfig = { apiKey: string; from: string };
+/** How e-mail leaves the app: SMTP, or the Resend HTTPS API for hosts that block outbound SMTP. */
+export type MailConfig = ({ provider: "smtp" } & SmtpConfig) | ({ provider: "resend" } & ResendConfig);
 export type AppConfig = {
   databaseUrl: string;
   appUrl: string | null;
@@ -19,7 +22,7 @@ export type AppConfig = {
   dataDir: string;
   port: number;
   s3: S3Config | null;
-  smtp: SmtpConfig | null;
+  mail: MailConfig | null;
   stripe: { secretKey: string; webhookSecret: string } | null;
   mercadoPago: { accessToken: string; webhookSecret: string } | null;
   updateCheck: boolean;
@@ -100,21 +103,28 @@ export function readConfig(env: Env): AppConfig {
     secretAccessKey: s3v.S3_SECRET_ACCESS_KEY,
   };
 
-  let smtp: SmtpConfig | null = null;
+  let mail: MailConfig | null = null;
   const smtpHost = str(env, "SMTP_HOST");
+  const resendKey = str(env, "RESEND_API_KEY");
   const mailFrom = str(env, "MAIL_FROM");
-  if (smtpHost && mailFrom) {
+  if ((smtpHost || resendKey) && !mailFrom) {
+    warnings.push("E-mail is disabled: missing MAIL_FROM.");
+  } else if (resendKey && mailFrom) {
+    mail = { provider: "resend", apiKey: resendKey, from: mailFrom };
+    if (smtpHost) warnings.push("RESEND_API_KEY and SMTP_HOST are both set; e-mail goes through Resend and SMTP is ignored.");
+  } else if (smtpHost && mailFrom) {
     const p = str(env, "SMTP_PORT");
     const parsed = p && /^\d+$/.test(p) ? Number.parseInt(p, 10) : NaN;
-    smtp = {
+    mail = {
+      provider: "smtp",
       host: smtpHost,
       port: Number.isInteger(parsed) && parsed > 0 && parsed < 65536 ? parsed : 587,
       user: str(env, "SMTP_USER"),
       pass: str(env, "SMTP_PASS"),
       from: mailFrom,
     };
-  } else if (smtpHost || mailFrom) {
-    warnings.push(`SMTP is disabled: missing ${smtpHost ? "MAIL_FROM" : "SMTP_HOST"}.`);
+  } else if (mailFrom) {
+    warnings.push("E-mail is disabled: set SMTP_HOST or RESEND_API_KEY.");
   }
 
   const st = group(env, ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], "Stripe", warnings);
@@ -127,7 +137,7 @@ export function readConfig(env: Env): AppConfig {
     dataDir: str(env, "DATA_DIR") ?? "/data",
     port,
     s3,
-    smtp,
+    mail,
     stripe: st && { secretKey: st.STRIPE_SECRET_KEY, webhookSecret: st.STRIPE_WEBHOOK_SECRET },
     mercadoPago: mp && { accessToken: mp.MERCADOPAGO_ACCESS_TOKEN, webhookSecret: mp.MERCADOPAGO_WEBHOOK_SECRET },
     updateCheck: bool(env, "UPDATE_CHECK", true),

@@ -15,7 +15,7 @@ type Deps = { db?: Db; send?: typeof sendMail };
  * Best effort, never throws: e-mails the ticket's assignees that a client opened it, or the owner
  * and managers when nobody is assigned. Only people with a password (a pending invite cannot sign
  * in). When the assignees are all pending invites, it falls back to the owner and managers like
- * the unassigned case, so a ticket never goes unnoticed. Run it after the opening transaction has committed. Without SMTP nothing is sent.
+ * the unassigned case, so a ticket never goes unnoticed. Run it after the opening transaction has committed. Without e-mail set up nothing is sent.
  */
 export async function notifyTicketOpened(ticketId: string, deps: Deps = {}): Promise<{ recipients: number; sent: number }> {
   try {

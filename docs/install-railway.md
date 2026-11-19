@@ -63,6 +63,8 @@ Then check **Settings → Installation**.
 
 E-mail, S3 storage and payments are optional. See [configuration](configuration.md).
 
+Railway blocks outbound SMTP on the Free, Trial and Hobby plans, so SMTP only works on Pro and above. On the other plans, send e-mail through the Resend API: set `RESEND_API_KEY` and `MAIL_FROM` (see [when your host blocks SMTP](configuration.md#when-your-host-blocks-smtp)).
+
 ## Backups
 
 Velk Express does not back itself up. Turn on scheduled backups in the Postgres service's backup settings right after the install, and take one before every update. See [backup and restore](backup-and-restore.md).

@@ -1,6 +1,6 @@
 # Configuration
 
-Velk Express is configured with environment variables. Integration secrets (SMTP, S3, Stripe, Mercado Pago) live only in variables, never in the database. The annotated list is in [`.env.example`](../.env.example); the Docker Compose version is [`deploy/.env.example`](../deploy/.env.example).
+Velk Express is configured with environment variables. Integration secrets (SMTP, Resend, S3, Stripe, Mercado Pago) live only in variables, never in the database. The annotated list is in [`.env.example`](../.env.example); the Docker Compose version is [`deploy/.env.example`](../deploy/.env.example).
 
 Change a variable, then restart the app for it to take effect.
 
@@ -24,7 +24,8 @@ The agency's time zone (it decides where the hours month starts and what "today"
 | `SMTP_PORT` | No | `587` | SMTP port. Port `465` uses TLS from the start; other ports upgrade with STARTTLS when the server offers it. |
 | `SMTP_USER` | No | none | SMTP username. Leave empty for a server without authentication. |
 | `SMTP_PASS` | No | none | SMTP password. |
-| `MAIL_FROM` | No | none | Sender, for example `Your Agency <support@example.com>`. Required with `SMTP_HOST`. |
+| `RESEND_API_KEY` | No | none | A [Resend](https://resend.com) API key. Sends e-mail through Resend's HTTPS API instead of SMTP, for hosts that block outbound SMTP. When set, the `SMTP_*` variables are ignored. |
+| `MAIL_FROM` | No | none | Sender, for example `Your Agency <support@example.com>`. Required with `SMTP_HOST` or `RESEND_API_KEY`. |
 | `STRIPE_SECRET_KEY` | No | none | Your Stripe secret key. With `STRIPE_WEBHOOK_SECRET`, turns Stripe on. See [payments](payments.md). |
 | `STRIPE_WEBHOOK_SECRET` | No | none | The signing secret of your Stripe webhook endpoint. |
 | `MERCADOPAGO_ACCESS_TOKEN` | No | none | Your Mercado Pago access token. With `MERCADOPAGO_WEBHOOK_SECRET`, turns Mercado Pago on. |
@@ -41,16 +42,16 @@ Some features need several variables. If only part of a group is set, the featur
 
 | Feature | Needs |
 |---|---|
-| E-mail | `SMTP_HOST` and `MAIL_FROM` (`SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` as your server requires) |
+| E-mail | `MAIL_FROM` plus either `SMTP_HOST` (and `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` as your server requires) or `RESEND_API_KEY` |
 | S3 storage | all five `S3_*` variables |
 | Stripe | `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` |
 | Mercado Pago | `MERCADOPAGO_ACCESS_TOKEN` and `MERCADOPAGO_WEBHOOK_SECRET` |
 
-## E-mail (SMTP)
+## E-mail
 
-Velk Express sends invites, password resets and notices (a ticket opened, a quote sent or approved, a person added to another client) through your own SMTP server or e-mail provider.
+Velk Express sends invites, password resets and notices (a ticket opened, a quote sent or approved, a person added to another client) through your own SMTP server or e-mail provider, or through the Resend API.
 
-Without SMTP, nothing breaks: sending is skipped and logged once, and the panel shows invite and password links for you to copy and send yourself. If you are locked out of the owner account, `velk reset-link` prints a password link (see [backup and restore](backup-and-restore.md#recovering-the-owner-account)).
+Without e-mail set up, nothing breaks: sending is skipped and logged once, and the panel shows invite and password links for you to copy and send yourself. If you are locked out of the owner account, `velk reset-link` prints a password link (see [backup and restore](backup-and-restore.md#recovering-the-owner-account)).
 
 Example with a typical provider:
 
@@ -63,6 +64,21 @@ MAIL_FROM=Your Agency <support@example.com>
 ```
 
 Use a sender address on a domain you have set up with your provider (SPF and DKIM), or the e-mails will land in spam.
+
+### When your host blocks SMTP
+
+Some hosts block outbound SMTP ports on cheaper plans, and every send then times out. Use the Resend API instead, which goes out over HTTPS:
+
+1. Create an account at [resend.com](https://resend.com), add your domain and create the DNS records it shows.
+2. Create an API key with sending access.
+3. Set the variables and restart:
+
+```sh
+RESEND_API_KEY=re_your_key
+MAIL_FROM=Your Agency <support@example.com>
+```
+
+`MAIL_FROM` must use the domain you verified in Resend. If a send fails, the log shows Resend's reason, for example `[mail] send to example.com failed: Resend API returned 403: ...`.
 
 ## File storage: disk or S3
 
@@ -81,7 +97,7 @@ Uploads are limited to 25 MB per file. Each person can also have at most 40 uncl
 The owner sees this read-only summary in **Settings → Installation**:
 
 - **Public address**: `APP_URL`, or the address saved at install. When `APP_URL` is not set, the owner can change it here.
-- **E-mail**: whether SMTP is set up.
+- **E-mail**: whether e-mail goes out through SMTP, through the Resend API, or is off.
 - **File storage**: local disk or S3 bucket, and whether it is writable.
 - **Payments**: which providers are on, or "manual records only".
 - **Version** and **Latest release**: the running version and, with `UPDATE_CHECK` on, whether a newer one exists.
