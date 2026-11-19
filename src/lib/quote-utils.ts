@@ -40,3 +40,8 @@ export function quoteStatusMeta(status: QuoteStatus): {
 export function newQuoteToken(): string {
   return randomBytes(24).toString("base64url");
 }
+
+/** A site id a quote item still points at that is not among the client's sites any more (deleted since it was saved). */
+export function missingSiteId(siteId: string, existing: { id: string }[]): boolean {
+  return siteId !== "" && !existing.some((s) => s.id === siteId);
+}

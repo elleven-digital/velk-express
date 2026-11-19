@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseQuotePayload } from "./quote-payload";
+import { en } from "@/lib/i18n/en";
+import { fmt } from "@/lib/i18n";
+import { parseQuotePayload, payloadErrorText } from "./quote-payload";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const SITE = "22222222-2222-4222-8222-222222222222";
@@ -40,16 +42,19 @@ describe("the builder payload parser", () => {
       ok: false,
       error: "invalidMoney",
       item: 1,
+      itemTitle: "Care plan",
     });
     expect(parseQuotePayload(JSON.stringify({ ...base, items: [{ ...support, includedHours: "lots" }] }))).toEqual({
       ok: false,
       error: "invalidHours",
       item: 0,
+      itemTitle: "Care plan",
     });
     expect(parseQuotePayload(JSON.stringify({ ...base, items: [{ ...support, extraHourPrice: "-5" }] }))).toEqual({
       ok: false,
       error: "invalidExtraHour",
       item: 0,
+      itemTitle: "Care plan",
     });
 
     // Typed values come through: money in either convention, decimal hours, free text untouched.
@@ -112,6 +117,26 @@ describe("the builder payload parser", () => {
     expect(parseQuotePayload(JSON.stringify({ ...base, clientId: "", items: [] }))).toEqual({ ok: false, error: "quoteNeedsClient" });
     expect(
       parseQuotePayload(JSON.stringify({ ...base, items: [{ ...support, newSites: [{ name: "", url: "https://x.com" }] }] })),
-    ).toEqual({ ok: false, error: "required", item: 0 });
+    ).toEqual({ ok: false, error: "required", item: 0, itemTitle: "Care plan" });
+  });
+});
+
+describe("payloadErrorText", () => {
+  const errors = en.quotes.errors as Record<string, string>;
+
+  it("names the item (its number and title) for a value that is not valid", () => {
+    expect(payloadErrorText(errors, { error: "invalidMoney", item: 1, itemTitle: "Care plan" }, fmt)).toBe(
+      "The amount of item 2 (Care plan) is not valid.",
+    );
+    expect(payloadErrorText(errors, { error: "invalidHours", item: 0, itemTitle: "Plan" }, fmt)).toBe(
+      "Item 1 (Plan): Enter the included hours as a number, like 10 or 7.5.",
+    );
+    // an item with no title typed yet still reads
+    expect(payloadErrorText(errors, { error: "invalidMoney", item: 2, itemTitle: "" }, fmt)).toBe("The amount of item 3 (—) is not valid.");
+  });
+
+  it("uses the plain text when no item is named", () => {
+    expect(payloadErrorText(errors, { error: "quoteNeedsClient" }, fmt)).toBe(errors.quoteNeedsClient);
+    expect(payloadErrorText(errors, { error: "invalidPayload" }, fmt)).toBe(errors.generic);
   });
 });

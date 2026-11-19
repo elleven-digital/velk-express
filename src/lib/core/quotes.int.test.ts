@@ -15,7 +15,7 @@ import {
 } from "@/lib/db";
 import type { TeamSession } from "@/lib/auth/session";
 import type { MailMessage, sendMail } from "@/lib/mail/send";
-import { archiveQuote, deleteQuote, getQuote, listQuotes, saveQuote, sendQuote, type QuoteInput, type QuoteItemInput } from "./quotes";
+import { QUOTES_PER_PAGE, archiveQuote, deleteQuote, getQuote, listQuotes, saveQuote, sendQuote, type QuoteInput, type QuoteItemInput } from "./quotes";
 
 // getConfig() is lazy: a database URL and a fixed public address.
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
@@ -236,7 +236,9 @@ describe("quotes", () => {
 
     for (const status of ["accepted", "executed", "archived"] as const) {
       await db.update(quotes).set({ status }).where(eq(quotes.id, id));
-      expect(await saveQuote(owner, { ...prospect({ title: "Nope" }), quoteId: id }, { db })).toEqual({ ok: false, error: "quoteLocked" });
+      // an executed quote says so; the others are just locked
+      const error = status === "executed" ? "quoteExecuted" : "quoteLocked";
+      expect(await saveQuote(owner, { ...prospect({ title: "Nope" }), quoteId: id }, { db })).toEqual({ ok: false, error });
     }
     expect((await db.select().from(quotes).where(eq(quotes.id, id)))[0].title).toBe("Proposal");
     expect(await saveQuote(owner, { ...prospect(), quoteId: "00000000-0000-4000-8000-000000000000" }, { db })).toEqual({ ok: false, error: "notFound" });
@@ -326,7 +328,8 @@ describe("quotes", () => {
 
     for (const status of ["accepted", "executed", "archived"] as const) {
       await db.update(quotes).set({ status }).where(eq(quotes.id, id));
-      expect(await sendQuote(owner, id, { db, send })).toEqual({ ok: false, error: "quoteLocked" });
+      const error = status === "executed" ? "quoteExecuted" : "quoteLocked";
+      expect(await sendQuote(owner, id, { db, send })).toEqual({ ok: false, error });
     }
     expect(await sendQuote(owner, "00000000-0000-4000-8000-000000000000", { db, send })).toEqual({ ok: false, error: "notFound" });
     expect(await sendQuote(owner, "nope", { db, send })).toEqual({ ok: false, error: "notFound" });
@@ -341,7 +344,7 @@ describe("quotes", () => {
     for (const status of ["sent", "accepted", "executed", "archived"] as const) {
       const q = await save(prospect());
       await db.update(quotes).set({ status }).where(eq(quotes.id, q));
-      expect(await deleteQuote(owner, q, { db })).toEqual({ ok: false, error: "quoteLocked" });
+      expect(await deleteQuote(owner, q, { db })).toEqual({ ok: false, error: status === "executed" ? "quoteExecuted" : "quoteLocked" });
       expect(await db.select().from(quotes).where(eq(quotes.id, q))).toHaveLength(1);
     }
   });
@@ -358,7 +361,7 @@ describe("quotes", () => {
     }
     const done = await save(prospect());
     await db.update(quotes).set({ status: "executed" }).where(eq(quotes.id, done));
-    expect(await archiveQuote(owner, done, { db })).toEqual({ ok: false, error: "quoteLocked" });
+    expect(await archiveQuote(owner, done, { db })).toEqual({ ok: false, error: "quoteExecuted" });
     expect((await db.select().from(quotes).where(eq(quotes.id, done)))[0].status).toBe("executed");
     expect(await archiveQuote(owner, "00000000-0000-4000-8000-000000000000", { db })).toEqual({ ok: false, error: "notFound" });
   });
@@ -371,10 +374,11 @@ describe("quotes", () => {
     await save(prospect({ title: "B", items: [item({ amountCents: 10_00 })] }));
     const list = await listQuotes(owner, { db });
     if (!list.ok) throw new Error(list.error);
-    expect(list.value).toHaveLength(2);
-    const rowA = list.value.find((q) => q.id === a)!;
+    expect(list.value.total).toBe(2);
+    expect(list.value.rows).toHaveLength(2);
+    const rowA = list.value.rows.find((q) => q.id === a)!;
     expect([rowA.clientName, rowA.oneTimeCents, rowA.monthlyCents]).toEqual(["Loja", 500_00, 80_00]);
-    const rowB = list.value.find((q) => q.id !== a)!;
+    const rowB = list.value.rows.find((q) => q.id !== a)!;
     expect([rowB.clientName, rowB.prospectName, rowB.oneTimeCents, rowB.monthlyCents]).toEqual([null, "Bia", 10_00, 0]);
 
     const got = await getQuote(owner, a, { db });
@@ -383,5 +387,49 @@ describe("quotes", () => {
     expect(got.value.sites.map((s) => s.name).sort()).toEqual(["Blog", "Main"]);
     expect(got.value.sites.some((s) => s.id === s1)).toBe(true);
     expect(await getQuote(owner, "nope", { db })).toEqual({ ok: false, error: "notFound" });
+  });
+
+  it("listQuotes pages at 50, newest first, with the total", async () => {
+    const created = new Date("2026-01-01T00:00:00Z");
+    await db.insert(quotes).values(
+      Array.from({ length: QUOTES_PER_PAGE + 3 }, (_, n) => ({
+        title: `Q${n}`,
+        token: `tok-${n}`,
+        currency: "BRL",
+        prospectName: "Bia",
+        createdAt: new Date(created.getTime() + n * 60_000),
+      })),
+    );
+    const first = await listQuotes(owner, { db });
+    if (!first.ok) throw new Error(first.error);
+    expect(first.value.total).toBe(QUOTES_PER_PAGE + 3);
+    expect(first.value.rows).toHaveLength(QUOTES_PER_PAGE);
+    expect(first.value.rows[0].title).toBe(`Q${QUOTES_PER_PAGE + 2}`);
+    const second = await listQuotes(owner, { db }, 2);
+    if (!second.ok) throw new Error(second.error);
+    expect(second.value.rows.map((r) => r.title)).toEqual(["Q2", "Q1", "Q0"]);
+    // a page that makes no sense is the first one
+    const odd = await listQuotes(owner, { db }, -4);
+    if (!odd.ok) throw new Error(odd.error);
+    expect(odd.value.rows[0].title).toBe(`Q${QUOTES_PER_PAGE + 2}`);
+  });
+
+  it("a quote whose saved site was deleted cannot be saved as it is: the site must be picked again", async () => {
+    const c = await makeClient("Loja");
+    const site = await makeSite(c, "Gone soon");
+    const id = await save({ clientId: c, title: "Maint", items: [item({ kind: "maintenance", config: { siteId: site } })] });
+    await db.delete(sites).where(eq(sites.id, site));
+    const got = await getQuote(owner, id, { db });
+    if (!got.ok) throw new Error(got.error);
+    // the item still points at the deleted site and no listed site matches it
+    expect(got.value.items[0].config.siteId).toBe(site);
+    expect(got.value.sites.some((s) => s.id === site)).toBe(false);
+    expect(await saveQuote(owner, { clientId: c, title: "Maint", items: [item({ kind: "maintenance", config: { siteId: site } })], quoteId: id }, { db })).toEqual({
+      ok: false,
+      error: "invalidSite",
+    });
+    // picking an existing site (or a new one) saves
+    const other = await makeSite(c, "Other");
+    expect((await saveQuote(owner, { clientId: c, title: "Maint", items: [item({ kind: "maintenance", config: { siteId: other } })], quoteId: id }, { db })).ok).toBe(true);
   });
 });

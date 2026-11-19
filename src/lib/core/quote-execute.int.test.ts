@@ -181,7 +181,7 @@ describe("executeQuote", () => {
     expect(quote.executedAt).toBeInstanceOf(Date);
     expect(quote.clientId).toBe(client.id);
     const itemRows = await db.select().from(quoteItems).where(eq(quoteItems.quoteId, quoteId));
-    expect(itemRows.every((i) => i.executed && i.clientApproved)).toBe(true);
+    expect(itemRows.every((i) => i.executed)).toBe(true);
 
     expect(res.value.log).toEqual([
       { action: "client", itemId: null, label: "Bia Doces", id: client.id },
@@ -232,7 +232,7 @@ describe("executeQuote", () => {
       expectNoDeadlock(results);
       const values = results.map((r) => (r.status === "fulfilled" ? r.value : { ok: false, error: String(r.reason) }));
       expect(values.filter((v) => v.ok)).toHaveLength(1);
-      expect(values.filter((v) => !v.ok)).toEqual([{ ok: false, error: "quoteLocked" }]);
+      expect(values.filter((v) => !v.ok)).toEqual([{ ok: false, error: "quoteExecuted" }]);
 
       const made = await db.select().from(clients).where(eq(clients.name, `Twice ${round}`));
       expect(made).toHaveLength(1);
@@ -548,14 +548,15 @@ describe("executeQuote", () => {
     expect(rows.map((r) => [r.title, r.executed, r.clientApproved])).toEqual([
       ["A", false, true],
       ["B", true, true],
-      ["C", true, true],
+      // executed although the client did not approve it: it stays unapproved ("included by the agency")
+      ["C", true, false],
     ]);
     expect((await db.select({ title: tickets.title }).from(tickets).orderBy(asc(tickets.number))).map((t) => t.title)).toEqual(["B", "C"]);
     const [quote] = await db.select().from(quotes).where(eq(quotes.id, q));
     expect(quote.status).toBe("executed");
 
     // An executed quote is locked: the leftover item can never run.
-    expect(await executeQuote(owner, q, [qIds[0]], { db, send })).toEqual({ ok: false, error: "quoteLocked" });
+    expect(await executeQuote(owner, q, [qIds[0]], { db, send })).toEqual({ ok: false, error: "quoteExecuted" });
     expect(await db.select().from(tickets)).toHaveLength(2);
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decidedTotals, newQuoteToken, quoteStatusMeta, quoteTotals } from "./quote-utils";
+import { decidedTotals, missingSiteId, newQuoteToken, quoteStatusMeta, quoteTotals } from "./quote-utils";
 
 describe("quoteTotals", () => {
   it("quoteTotals splits one-time and monthly", () => {
@@ -47,5 +47,15 @@ describe("decidedTotals", () => {
     expect(decidedTotals("accepted", items)).toEqual({ oneTimeCents: 105_00, monthlyCents: 0 });
     expect(decidedTotals("executed", items)).toEqual({ oneTimeCents: 105_00, monthlyCents: 0 });
     expect(decidedTotals("accepted", [])).toEqual({ oneTimeCents: 0, monthlyCents: 0 });
+  });
+});
+
+describe("missingSiteId", () => {
+  it("is true only for a saved site that is not among the existing ones", () => {
+    const existing = [{ id: "a" }, { id: "b" }];
+    expect(missingSiteId("a", existing)).toBe(false);
+    expect(missingSiteId("gone", existing)).toBe(true);
+    expect(missingSiteId("", existing)).toBe(false);
+    expect(missingSiteId("a", [])).toBe(true);
   });
 });

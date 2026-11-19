@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: agency?.name ?? "Velk Express", robots: { index: false, follow: false } };
 }
 
-const ERRORS = ["nothingSelected", "tooManyAttempts"] as const;
+const ERRORS = ["nothingSelected", "tooManyAttempts", "quoteChanged"] as const;
 
 export default async function PublicQuotePage({
   params,
@@ -134,6 +134,7 @@ export default async function PublicQuotePage({
 
           <form action={approveQuoteAction}>
             <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="version" value={quote.version} />
             <Card className="divide-y divide-line">
               {quote.items.map((item, i) => {
                 const row = (
@@ -162,11 +163,16 @@ export default async function PublicQuotePage({
                           {t.quotes.public.approved}
                         </Badge>
                       ) : null}
+                      {item.includedByAgency ? (
+                        <Badge tone="info" className="mt-1">
+                          {t.quotes.public.includedByAgency}
+                        </Badge>
+                      ) : null}
                     </span>
                   </>
                 );
                 return decided ? (
-                  <div key={item.id} className={cn("flex items-start gap-3 px-4 py-3", !item.clientApproved && "opacity-60")}>
+                  <div key={item.id} className={cn("flex items-start gap-3 px-4 py-3", !item.clientApproved && !item.includedByAgency && "opacity-60")}>
                     {row}
                   </div>
                 ) : (

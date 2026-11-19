@@ -30,9 +30,10 @@ export async function approveQuoteAction(formData: FormData): Promise<void> {
   if (!passesAll(approveQuoteRules(clientIp(await headers())))) redirect(pageOf(token, "tooManyAttempts"));
 
   const itemIds = formData.getAll("itemId").map(String);
-  const res = await approveQuote(token, itemIds);
+  const version = formData.get("version");
+  const res = await approveQuote(token, itemIds, {}, typeof version === "string" ? version : undefined);
   revalidatePath(pageOf(token).split("?")[0]);
-  if (!res.ok && res.error === "nothingSelected") redirect(pageOf(token, "nothingSelected"));
+  if (!res.ok && (res.error === "nothingSelected" || res.error === "quoteChanged")) redirect(pageOf(token, res.error));
   redirect(pageOf(token));
 }
 

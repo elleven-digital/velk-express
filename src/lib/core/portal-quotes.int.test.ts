@@ -23,7 +23,7 @@ import {
   type QuoteStatus,
 } from "@/lib/db";
 import { getPortalHome } from "./portal-home";
-import { countSentPortalQuotes, listPortalQuotes } from "./portal-quotes";
+import { PORTAL_QUOTES_PER_PAGE, countPortalQuotes, countSentPortalQuotes, listPortalQuotes } from "./portal-quotes";
 
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 
@@ -181,5 +181,31 @@ describe("portal quotes", () => {
     expect(await countSentPortalQuotes(inB!, { db })).toBe(0);
     const home = await getPortalHome(inB!, db);
     expect(home.proposals).toEqual([]);
+  });
+
+  it("the list pages at 50, newest first, and the count covers every visible quote", async () => {
+    const base = new Date("2026-02-01T00:00:00Z").getTime();
+    await db.insert(quotes).values(
+      Array.from({ length: PORTAL_QUOTES_PER_PAGE + 2 }, (_, n) => ({
+        clientId: A.id,
+        title: `P${n}`,
+        status: "sent" as const,
+        sentAt: new Date(base + n * 60_000),
+        token: `tok-page-${n}`,
+        currency: "USD",
+      })),
+    );
+    await makeQuote(A.id, "draft", "Draft");
+    const boss1 = asPortal(A, boss, "admin");
+    expect(await countPortalQuotes(boss1, { db })).toBe(PORTAL_QUOTES_PER_PAGE + 2);
+    expect(await countPortalQuotes(asPortal(A, helper, "collaborator"), { db })).toBe(0);
+
+    const first = await listPortalQuotes(boss1, { db });
+    if (!first.ok) throw new Error(first.error);
+    expect(first.value).toHaveLength(PORTAL_QUOTES_PER_PAGE);
+    expect(first.value[0].title).toBe(`P${PORTAL_QUOTES_PER_PAGE + 1}`);
+    const second = await listPortalQuotes(boss1, { db }, { page: 2 });
+    if (!second.ok) throw new Error(second.error);
+    expect(second.value.map((r) => r.title)).toEqual(["P1", "P0"]);
   });
 });

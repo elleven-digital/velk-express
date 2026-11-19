@@ -14,7 +14,7 @@ import { chargeFor } from "@/lib/core/charges";
 import { getQuote } from "@/lib/core/quotes";
 import type { Currency } from "@/lib/core/settings";
 import { formatMoney } from "@/lib/format";
-import { fmt } from "@/lib/i18n";
+import { fmt, lookup } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
 import { decidedTotals, quoteStatusMeta } from "@/lib/quote-utils";
 import type { QuoteLogEntry } from "@/lib/db";
@@ -30,7 +30,7 @@ export default async function QuotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ok?: string }>;
+  searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const me = await requireQuoteOwner();
@@ -140,7 +140,7 @@ export default async function QuotePage({
         }
       />
 
-      <Flash ok={sp.ok === "saved" ? t.quotes.saved : undefined} />
+      <Flash ok={sp.ok === "saved" ? t.quotes.saved : undefined} error={lookup(t.quotes.errors, sp.err)} />
       {quote.acceptedAt && quote.status !== "executed" ? (
         <Callout tone="ok" className="mb-6">
           {approvedBefore}
@@ -181,6 +181,7 @@ export default async function QuotePage({
                           {item.clientApproved && quote.status !== "executed" ? (
                             <Badge tone="ok">{t.quotes.approvedByClient}</Badge>
                           ) : null}
+                          {item.executed && !item.clientApproved ? <Badge tone="info">{t.quotes.includedByAgency}</Badge> : null}
                           {item.executed ? <Badge tone="ok">{t.quotes.status.executed}</Badge> : null}
                         </div>
                       </div>
@@ -340,8 +341,6 @@ export default async function QuotePage({
                 labels={{
                   send: quote.status === "draft" ? t.quotes.send : t.quotes.resend,
                   hint: quote.status === "draft" ? t.quotes.sendHint : t.quotes.resendHint,
-                  copyLink: t.quotes.copyLink,
-                  copied: t.quotes.copied,
                 }}
               />
             </div>

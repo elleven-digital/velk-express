@@ -3,14 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getAppUrl } from "@/lib/app-url";
 import type { LinkActionState } from "@/components/link-box";
 import { requireTeam } from "@/lib/auth/guards";
 import { executeQuote } from "@/lib/core/quote-execute";
-import { archiveQuote, deleteQuote, getQuote, saveQuote, sendQuote } from "@/lib/core/quotes";
+import { archiveQuote, deleteQuote, saveQuote, sendQuote } from "@/lib/core/quotes";
 import { fmt } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
-import { parseQuotePayload } from "@/lib/quote-payload";
+import { parseQuotePayload, payloadErrorText } from "@/lib/quote-payload";
 import type { QuoteState } from "./quote-state";
 
 const idSchema = z.uuid();
@@ -29,9 +28,9 @@ function refresh(id?: string) {
 /** Creates a quote, or rewrites the one in `quoteId`. The builder's whole state arrives as JSON in `payload`. */
 export async function saveQuoteAction(_prev: QuoteState, formData: FormData): Promise<QuoteState> {
   const actor = await requireTeam();
-  const { error } = await messages();
+  const { t, error } = await messages();
   const parsed = parseQuotePayload(formData.get("payload"));
-  if (!parsed.ok) return error(parsed.error === "invalidPayload" ? "generic" : parsed.error);
+  if (!parsed.ok) return { error: payloadErrorText(t.quotes.errors, parsed, fmt) };
   const quoteId = String(formData.get("quoteId") ?? "");
   const res = await saveQuote(actor, { ...parsed.value, ...(quoteId ? { quoteId } : {}) });
   if (!res.ok) return error(res.error);
@@ -39,7 +38,7 @@ export async function saveQuoteAction(_prev: QuoteState, formData: FormData): Pr
   redirect(`/admin/quotes/${res.value.id}?ok=saved`);
 }
 
-/** Marks the quote as sent (again) and says who got the e-mail, with the public link to copy. */
+/** Marks the quote as sent (again) and says who got the e-mail. The page shows the public link itself. */
 export async function sendQuoteAction(_prev: QuoteState, formData: FormData): Promise<QuoteState> {
   const actor = await requireTeam();
   const { t, error } = await messages();
@@ -47,21 +46,24 @@ export async function sendQuoteAction(_prev: QuoteState, formData: FormData): Pr
   if (!id.success) return error("notFound");
   const res = await sendQuote(actor, id.data);
   if (!res.ok) return error(res.error);
-  const found = await getQuote(actor, id.data);
   refresh(id.data);
-  return {
-    ok: res.value.emailedTo ? fmt(t.quotes.sentTo, { email: res.value.emailedTo }) : t.quotes.sentNoEmail,
-    link: found.ok ? `${await getAppUrl()}/q/${found.value.quote.token}` : undefined,
-  };
+  return { ok: res.value.emailedTo ? fmt(t.quotes.sentTo, { email: res.value.emailedTo }) : t.quotes.sentNoEmail };
+}
+
+/** Where a refused archive or delete lands: the quote's page (or the list when it is gone) with the reason in `?err=`. */
+function refused(id: string, code: string): never {
+  redirect(code === "notFound" ? `/admin/quotes?err=notFound` : `/admin/quotes/${id}?err=${code}`);
 }
 
 export async function archiveQuoteAction(formData: FormData): Promise<void> {
   const actor = await requireTeam();
   const id = idSchema.safeParse(String(formData.get("quoteId") ?? ""));
   if (!id.success) redirect("/admin/quotes");
-  await archiveQuote(actor, id.data);
+  const res = await archiveQuote(actor, id.data);
   refresh(id.data);
-  redirect(`/admin/quotes/${id.data}`);
+  if (!res.ok) refused(id.data, res.error);
+  // Archived in another tab already: say so instead of looking like nothing happened.
+  redirect(res.value.changed ? `/admin/quotes/${id.data}` : `/admin/quotes/${id.data}?err=alreadyArchived`);
 }
 
 export async function deleteQuoteAction(formData: FormData): Promise<void> {
@@ -70,7 +72,8 @@ export async function deleteQuoteAction(formData: FormData): Promise<void> {
   if (!id.success) redirect("/admin/quotes");
   const res = await deleteQuote(actor, id.data);
   refresh(id.data);
-  redirect(res.ok ? "/admin/quotes" : `/admin/quotes/${id.data}`);
+  if (!res.ok) refused(id.data, res.error);
+  redirect("/admin/quotes");
 }
 
 /**

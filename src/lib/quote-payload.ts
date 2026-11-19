@@ -24,8 +24,8 @@ export type ParsedQuote = {
   items: { kind: QuoteItemKind; title: string; description?: string; amountCents: number; config: QuoteItemConfig }[];
 };
 
-/** `item` is the position of the offending item, when the error is in one. */
-export type PayloadResult = { ok: true; value: ParsedQuote } | { ok: false; error: PayloadErrorCode; item?: number };
+/** `item` is the position of the offending item, when the error is in one, and `itemTitle` the title typed on it. */
+export type PayloadResult = { ok: true; value: ParsedQuote } | { ok: false; error: PayloadErrorCode; item?: number; itemTitle?: string };
 
 const MAX_PAYLOAD_CHARS = 500_000;
 const MAX_ITEMS = 200;
@@ -35,7 +35,8 @@ const MAX_INCLUDED_MINUTES = 100_000;
 const KINDS: readonly QuoteItemKind[] = ["site_creation", "maintenance", "support"];
 const HOURS_MODES = ["off", "internal", "package"] as const;
 
-const bad = (error: PayloadErrorCode, item?: number): PayloadResult => (item === undefined ? { ok: false, error } : { ok: false, error, item });
+const bad = (error: PayloadErrorCode, item?: number, itemTitle?: string): PayloadResult =>
+  item === undefined ? { ok: false, error } : { ok: false, error, item, itemTitle: itemTitle ?? "" };
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
@@ -86,7 +87,7 @@ export function parseQuotePayload(raw: unknown): PayloadResult {
 
     const amountText = str(item.amount).trim();
     const amountCents = amountText ? parseMoney(amountText) : 0;
-    if (amountCents === null) return bad("invalidMoney", index);
+    if (amountCents === null) return bad("invalidMoney", index, str(item.title).trim());
 
     const config: QuoteItemConfig = {};
     const name = str(item.newSiteName).trim();
@@ -95,14 +96,14 @@ export function parseQuotePayload(raw: unknown): PayloadResult {
       const siteId = forClient && kind === "maintenance" ? str(item.siteId).trim() : "";
       if (siteId) config.siteId = siteId;
       else if (name) config.newSite = url ? { name, url } : { name };
-      else if (url) return bad("required", index);
+      else if (url) return bad("required", index, str(item.title).trim());
     } else {
       if (forClient && Array.isArray(item.siteIds)) {
         const ids = item.siteIds.filter((id): id is string => typeof id === "string" && id !== "");
         if (ids.length > 0) config.siteIds = ids.slice(0, MAX_ROWS);
       }
       const rows = newSiteRows(Array.isArray(item.newSites) ? item.newSites : []);
-      if (!rows) return bad("required", index);
+      if (!rows) return bad("required", index, str(item.title).trim());
       if (rows.length > 0) config.newSites = rows;
 
       const mode = HOURS_MODES.find((m) => m === item.hoursMode);
@@ -112,10 +113,10 @@ export function parseQuotePayload(raw: unknown): PayloadResult {
       config.extraHourCents = null;
       if (mode === "package") {
         const minutes = hoursToMinutes(str(item.includedHours));
-        if (minutes === null) return bad("invalidHours", index);
+        if (minutes === null) return bad("invalidHours", index, str(item.title).trim());
         const extraText = str(item.extraHourPrice).trim();
         const extra = extraText ? parseMoney(extraText) : null;
-        if (extraText && extra === null) return bad("invalidExtraHour", index);
+        if (extraText && extra === null) return bad("invalidExtraHour", index, str(item.title).trim());
         config.includedMinutes = minutes;
         config.extraHourCents = extra;
       }
@@ -141,4 +142,22 @@ export function parseQuotePayload(raw: unknown): PayloadResult {
       items,
     },
   };
+}
+
+/**
+ * The text for a refused payload: the item-specific wording when the error names an item (its
+ * number on the screen and its title), the plain one otherwise. `errors` is the dictionary's
+ * `quotes.errors`; `generic` stands for a code it does not know.
+ */
+export function payloadErrorText(
+  errors: Record<string, string>,
+  result: { error: PayloadErrorCode; item?: number; itemTitle?: string },
+  fmt: (template: string, vars: Record<string, string | number>) => string,
+): string {
+  const code = result.error === "invalidPayload" ? "generic" : result.error;
+  if (result.item === undefined) return errors[code] ?? errors.generic;
+  const vars = { n: result.item + 1, title: result.itemTitle?.trim() || "—" };
+  if (code === "invalidMoney") return fmt(errors.invalidItemMoney, vars);
+  const base = errors[code] ?? errors.generic;
+  return `${fmt(errors.inItem, vars)} ${base}`;
 }

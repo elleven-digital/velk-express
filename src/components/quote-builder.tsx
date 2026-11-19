@@ -6,6 +6,7 @@ import { Button, Callout, Card, Field, Input, LinkButton, SectionTitle, Select, 
 import type { Currency } from "@/lib/core/settings";
 import { formatMoney, moneyPlaceholder, parseMoney } from "@/lib/format";
 import { fmt, type Dict, type Locale } from "@/lib/i18n";
+import { missingSiteId } from "@/lib/quote-utils";
 
 export type BuilderClient = { id: string; name: string };
 export type BuilderSite = { id: string; name: string; clientId: string };
@@ -122,10 +123,13 @@ export function QuoteBuilder({
       newSites: i.newSites.map((s, m) => ({ ...s, key: `i${n}s${m}` })),
     })),
   );
+  const [localError, setLocalError] = useState<string | null>(null);
   const seq = useRef(0);
   const nextKey = () => `n${++seq.current}`;
 
   const clientSites = sites.filter((s) => s.clientId === clientId);
+  /** A maintenance item whose saved site is gone: it must be pointed at another site (or "a new one") before saving. */
+  const siteGone = (item: BuilderItem) => item.kind === "maintenance" && mode === "client" && missingSiteId(item.siteId, clientSites);
   const placeholder = moneyPlaceholder(locale);
   const patch = (key: string, change: Partial<BuilderItem>) =>
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...change } : i)));
@@ -153,7 +157,8 @@ export function QuoteBuilder({
       siteId: item.siteId,
       newSiteName: item.newSiteName,
       newSiteUrl: item.newSiteUrl,
-      siteIds: item.siteIds,
+      // sites deleted since the quote was saved cannot be covered any more
+      siteIds: item.siteIds.filter((id) => !missingSiteId(id, clientSites)),
       newSites: item.newSites.map(({ name, url }) => ({ name, url })),
       hoursMode: item.hoursMode,
       includedHours: item.includedHours,
@@ -179,13 +184,18 @@ export function QuoteBuilder({
       className="space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
+        if (items.some(siteGone)) {
+          setLocalError(labels.scSiteGone);
+          return;
+        }
+        setLocalError(null);
         const data = new FormData(e.currentTarget);
         startTransition(() => formAction(data));
       }}
     >
       <input type="hidden" name="payload" value={payload} />
       {quoteId ? <input type="hidden" name="quoteId" value={quoteId} /> : null}
-      {state?.error ? <Callout tone="danger" title={state.error} /> : null}
+      {localError ? <Callout tone="danger" title={localError} /> : state?.error ? <Callout tone="danger" title={state.error} /> : null}
 
       <Card className="space-y-5 p-6 max-sm:p-4">
         <Field label={labels.colTitle} htmlFor="q-title">
@@ -280,7 +290,9 @@ export function QuoteBuilder({
               <div className="mt-4 space-y-4 rounded-field border border-line bg-paper p-4 max-sm:p-3.5">
                 <div className="text-[0.8125rem] font-medium text-muted">{labels.shortcuts}</div>
 
-                {item.kind === "maintenance" && mode === "client" ? <MaintenancePick item={item} sites={clientSites} labels={labels} patch={patch} /> : null}
+                {item.kind === "maintenance" && mode === "client" ? (
+                  <MaintenancePick item={item} sites={clientSites} gone={siteGone(item)} labels={labels} patch={patch} />
+                ) : null}
                 {item.kind === "site_creation" || (item.kind === "maintenance" && !(mode === "client" && item.siteId)) ? (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label={labels.scNewSiteName} htmlFor={`sn-${item.key}`}>
@@ -467,17 +479,26 @@ export function QuoteBuilder({
 function MaintenancePick({
   item,
   sites,
+  gone,
   labels,
   patch,
 }: {
   item: BuilderItem;
   sites: BuilderSite[];
+  /** The saved site no longer exists. */
+  gone: boolean;
   labels: BuilderLabels;
   patch: (key: string, change: Partial<BuilderItem>) => void;
 }) {
   return (
     <Field label={labels.scPickSite} htmlFor={`ms-${item.key}`}>
+      {gone ? <Callout tone="warn" title={labels.scSiteGone} className="mb-2" /> : null}
       <Select id={`ms-${item.key}`} value={item.siteId} onChange={(e) => patch(item.key, { siteId: e.target.value })}>
+        {gone ? (
+          <option value={item.siteId} disabled>
+            {labels.scSiteGoneOption}
+          </option>
+        ) : null}
         <option value="">{labels.scNewSiteOption}</option>
         {sites.map((s) => (
           <option key={s.id} value={s.id}>

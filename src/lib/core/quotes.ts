@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { TeamSession } from "@/lib/auth/session";
 import { getAppUrl } from "@/lib/app-url";
@@ -255,6 +255,7 @@ export async function saveQuote(actor: TeamSession, rawInput: QuoteInput, deps: 
     } else {
       const [existing] = await tx.select().from(quotes).where(eq(quotes.id, input.quoteId)).for("update");
       if (!existing) throw new Abort("notFound");
+      if (existing.status === "executed") throw new Abort("quoteExecuted");
       if (existing.status !== "draft" && existing.status !== "sent") throw new Abort("quoteLocked");
       await tx.update(quotes).set(fields).where(eq(quotes.id, existing.id));
       await tx.delete(quoteItems).where(eq(quoteItems.quoteId, existing.id));
@@ -315,6 +316,7 @@ export async function sendQuote(
   const marked = await transact(db, async (tx) => {
     const [quote] = await tx.select().from(quotes).where(eq(quotes.id, quoteId)).for("update");
     if (!quote) throw new Abort("notFound");
+    if (quote.status === "executed") throw new Abort("quoteExecuted");
     if (quote.status !== "draft" && quote.status !== "sent") throw new Abort("quoteLocked");
     const now = new Date();
     const [row] = await tx
@@ -357,20 +359,21 @@ export async function archiveQuote(actor: TeamSession, quoteId: string, deps: De
   return transact(deps.db ?? appDb, async (tx) => {
     const [quote] = await tx.select().from(quotes).where(eq(quotes.id, quoteId)).for("update");
     if (!quote) throw new Abort("notFound");
-    if (quote.status === "executed") throw new Abort("quoteLocked");
+    if (quote.status === "executed") throw new Abort("quoteExecuted");
     if (quote.status === "archived") return { changed: false };
     await tx.update(quotes).set({ status: "archived", updatedAt: new Date() }).where(eq(quotes.id, quoteId));
     return { changed: true };
   });
 }
 
-/** Deletes a draft (its items go with it). Any other status is `quoteLocked`. */
+/** Deletes a draft (its items go with it). An executed quote is `quoteExecuted`; any other status is `quoteLocked`. */
 export async function deleteQuote(actor: TeamSession, quoteId: string, deps: Deps = {}): Promise<Result> {
   if (!isOwner(actor)) return fail("forbidden");
   if (!uuid.safeParse(quoteId).success) return fail("notFound");
   const res = await transact(deps.db ?? appDb, async (tx) => {
     const [quote] = await tx.select({ status: quotes.status }).from(quotes).where(eq(quotes.id, quoteId)).for("update");
     if (!quote) throw new Abort("notFound");
+    if (quote.status === "executed") throw new Abort("quoteExecuted");
     if (quote.status !== "draft") throw new Abort("quoteLocked");
     await tx.delete(quotes).where(eq(quotes.id, quoteId));
   });
@@ -383,15 +386,26 @@ export type QuoteRow = Quote & {
   monthlyCents: number;
 };
 
-/** Every quote, newest first, with the client name and the totals. Owner only. */
-export async function listQuotes(actor: TeamSession, deps: Deps = {}): Promise<Result<QuoteRow[]>> {
+export const QUOTES_PER_PAGE = 50;
+
+/** One page of quotes (50), newest first, with the client name and the totals, and how many there are in all. Owner only. */
+export async function listQuotes(
+  actor: TeamSession,
+  deps: Deps = {},
+  page = 1,
+): Promise<Result<{ rows: QuoteRow[]; total: number }>> {
   if (!isOwner(actor)) return fail("forbidden");
   const db = deps.db ?? appDb;
+  const pageNumber = Number.isSafeInteger(page) && page > 1 ? page : 1;
+  const [{ total }] = await db.select({ total: count() }).from(quotes);
   const rows = await db
     .select({ quote: quotes, clientName: clients.name })
     .from(quotes)
     .leftJoin(clients, eq(clients.id, quotes.clientId))
-    .orderBy(desc(quotes.createdAt), desc(quotes.id));
+    .orderBy(desc(quotes.createdAt), desc(quotes.id))
+    .limit(QUOTES_PER_PAGE)
+    .offset((pageNumber - 1) * QUOTES_PER_PAGE);
+  if (rows.length === 0) return ok({ rows: [], total });
   const sums = await db
     .select({
       quoteId: quoteItems.quoteId,
@@ -399,6 +413,7 @@ export async function listQuotes(actor: TeamSession, deps: Deps = {}): Promise<R
       cents: sql<number>`coalesce(sum(${quoteItems.amountCents}), 0)::int`,
     })
     .from(quoteItems)
+    .where(inArray(quoteItems.quoteId, rows.map((r) => r.quote.id)))
     .groupBy(quoteItems.quoteId, quoteItems.monthly);
   const byQuote = new Map<string, { monthly: boolean; amountCents: number }[]>();
   for (const s of sums) {
@@ -406,7 +421,10 @@ export async function listQuotes(actor: TeamSession, deps: Deps = {}): Promise<R
     list.push({ monthly: s.monthly, amountCents: s.cents });
     byQuote.set(s.quoteId, list);
   }
-  return ok(rows.map((r) => ({ ...r.quote, clientName: r.clientName, ...quoteTotals(byQuote.get(r.quote.id) ?? []) })));
+  return ok({
+    rows: rows.map((r) => ({ ...r.quote, clientName: r.clientName, ...quoteTotals(byQuote.get(r.quote.id) ?? []) })),
+    total,
+  });
 }
 
 export type QuoteDetail = {

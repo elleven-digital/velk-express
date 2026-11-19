@@ -9,6 +9,7 @@ import { getUserDict } from "@/lib/i18n/server";
 import { ticketStatusBadge } from "@/lib/turn";
 import { FilterSelect } from "@/components/filter-select";
 import { Icon } from "@/components/icons";
+import { Pager } from "@/components/pager";
 import { LocalTime } from "@/components/local-time";
 import { Segmented } from "@/components/shell-nav";
 import { Card, EmptyState, inputClasses, LinkButton, PageHeader, cn } from "@/components/ui";
@@ -174,25 +175,12 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
         </WorkList>
       )}
 
-      {pages > 1 ? (
-        <nav aria-label={t.tickets.pagination} className="mt-5 flex items-center justify-between gap-3 text-muted">
-          {shownPage > 1 ? (
-            <LinkButton href={href({ page: shownPage - 1 > 1 ? String(shownPage - 1) : undefined })} variant="secondary" size="sm">
-              {t.tickets.pagePrev}
-            </LinkButton>
-          ) : (
-            <span />
-          )}
-          <span className="tabular">{fmt(t.tickets.pageOf, { page: shownPage, pages })}</span>
-          {shownPage < pages ? (
-            <LinkButton href={href({ page: String(shownPage + 1) })} variant="secondary" size="sm">
-              {t.tickets.pageNext}
-            </LinkButton>
-          ) : (
-            <span />
-          )}
-        </nav>
-      ) : null}
+      <Pager
+        page={shownPage}
+        pages={pages}
+        hrefOf={(n) => href({ page: n > 1 ? String(n) : undefined })}
+        labels={{ nav: t.tickets.pagination, prev: t.tickets.pagePrev, next: t.tickets.pageNext, of: t.tickets.pageOf }}
+      />
     </div>
   );
 }

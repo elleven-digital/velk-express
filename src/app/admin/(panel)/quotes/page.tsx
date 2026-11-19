@@ -1,21 +1,33 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { LocalTime } from "@/components/local-time";
+import { Flash } from "@/components/flash";
+import { Pager } from "@/components/pager";
 import { Avatar, Badge, Card, EmptyState, LinkButton, PageHeader, TableShell, cn, tdClasses, thClasses } from "@/components/ui";
-import { listQuotes } from "@/lib/core/quotes";
+import { QUOTES_PER_PAGE, listQuotes } from "@/lib/core/quotes";
 import type { Currency } from "@/lib/core/settings";
 import { formatMoney } from "@/lib/format";
+import { lookup } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
 import { quoteStatusMeta } from "@/lib/quote-utils";
 import { requireQuoteOwner } from "./guard";
 
 export const dynamic = "force-dynamic";
 
-export default async function QuotesPage() {
+export default async function QuotesPage({ searchParams }: { searchParams: Promise<{ page?: string; err?: string }> }) {
   const me = await requireQuoteOwner();
-  const { t, locale } = await getUserDict();
-  const listed = await listQuotes(me);
-  const rows = listed.ok ? listed.value : [];
+  const [{ t, locale }, sp] = await Promise.all([getUserDict(), searchParams]);
+  const rawPage = Number(sp.page);
+  const page = Number.isSafeInteger(rawPage) && rawPage > 1 ? rawPage : 1;
+  let listed = await listQuotes(me, {}, page);
+  // A page past the last one (a stale link, a typed number) shows the last page instead of an empty list.
+  if (listed.ok && page > 1 && listed.value.rows.length === 0 && listed.value.total > 0) {
+    listed = await listQuotes(me, {}, Math.ceil(listed.value.total / QUOTES_PER_PAGE));
+  }
+  const rows = listed.ok ? listed.value.rows : [];
+  const total = listed.ok ? listed.value.total : 0;
+  const pages = Math.max(1, Math.ceil(total / QUOTES_PER_PAGE));
+  const shownPage = Math.min(page, pages);
   const money = (cents: number, currency: string) => formatMoney(cents, currency as Currency, locale);
   const who = (row: (typeof rows)[number]) => row.clientName ?? row.prospectName ?? "";
 
@@ -30,6 +42,8 @@ export default async function QuotesPage() {
           </LinkButton>
         }
       />
+
+      <Flash error={lookup(t.quotes.errors, sp.err)} />
 
       {rows.length === 0 ? (
         <Card>
@@ -135,6 +149,12 @@ export default async function QuotesPage() {
           </div>
         </>
       )}
+      <Pager
+        page={shownPage}
+        pages={pages}
+        hrefOf={(n) => (n > 1 ? `/admin/quotes?page=${n}` : "/admin/quotes")}
+        labels={{ nav: t.tickets.pagination, prev: t.tickets.pagePrev, next: t.tickets.pageNext, of: t.tickets.pageOf }}
+      />
     </>
   );
 }

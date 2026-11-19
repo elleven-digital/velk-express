@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { LocalTime } from "@/components/local-time";
+import { Pager } from "@/components/pager";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { ProposalRow, WorkList } from "@/components/work-list";
 import { requirePortalAdmin } from "@/lib/auth/guards";
-import { listPortalQuotes } from "@/lib/core/portal-quotes";
+import { PORTAL_QUOTES_PER_PAGE, countPortalQuotes, listPortalQuotes } from "@/lib/core/portal-quotes";
 import type { Currency } from "@/lib/core/settings";
 import { getAgency } from "@/lib/agency";
 import { formatMoney } from "@/lib/format";
@@ -13,9 +14,16 @@ import { quoteStatusMeta } from "@/lib/quote-utils";
 export const dynamic = "force-dynamic";
 
 /** The company's proposals (sent, approved, executed), for its admins; anyone else goes home. */
-export default async function PortalQuotesPage() {
+export default async function PortalQuotesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await requirePortalAdmin();
-  const [res, { t, locale }, agency] = await Promise.all([listPortalQuotes(session), getPortalDict(), getAgency()]);
+  const sp = await searchParams;
+  const rawPage = Number(sp.page);
+  const requested = Number.isSafeInteger(rawPage) && rawPage > 1 ? rawPage : 1;
+  const [total, { t, locale }, agency] = await Promise.all([countPortalQuotes(session), getPortalDict(), getAgency()]);
+  // A page past the last one (a stale link, a typed number) shows the last page instead of an empty list.
+  const pages = Math.max(1, Math.ceil(total / PORTAL_QUOTES_PER_PAGE));
+  const page = Math.min(requested, pages);
+  const res = await listPortalQuotes(session, {}, { page });
   // The core re-reads the role: a demotion since the session was resolved means back home.
   if (!res.ok) redirect("/");
   const p = t.portal;
@@ -54,6 +62,12 @@ export default async function PortalQuotesPage() {
           })}
         </WorkList>
       )}
+      <Pager
+        page={page}
+        pages={pages}
+        hrefOf={(n) => (n > 1 ? `/quotes?page=${n}` : "/quotes")}
+        labels={{ nav: t.tickets.pagination, prev: t.tickets.pagePrev, next: t.tickets.pageNext, of: t.tickets.pageOf }}
+      />
     </div>
   );
 }

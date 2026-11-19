@@ -67,6 +67,7 @@ async function run(db: Db, actor: TeamSession, quoteId: string, itemIds: string[
     // 2. The quote: a second click waits here and then finds it executed.
     const [quote] = await tx.select().from(quotes).where(eq(quotes.id, quoteId)).for("update");
     if (!quote) throw new Abort("notFound");
+    if (quote.status === "executed") throw new Abort("quoteExecuted");
     if (quote.status !== "sent" && quote.status !== "accepted") throw new Abort("quoteLocked");
     // The values are copied to tickets and the support plan, which read in the agency's current currency.
     if (quote.currency !== brand.currency) throw new Abort("currencyChanged");
@@ -190,11 +191,13 @@ async function run(db: Db, actor: TeamSession, quoteId: string, itemIds: string[
       }
     }
 
-    // 5. Close the quote: the ticked items are executed (and count as approved), the rest stay as they are.
+    // 5. Close the quote: the ticked items are executed, the rest stay as they are. `clientApproved` is left
+    // alone on purpose: an executed item the client did not approve is what the screens call "included by
+    // the agency" (the totals already count `clientApproved || executed`).
     const now = new Date();
     await tx
       .update(quoteItems)
-      .set({ executed: true, clientApproved: true })
+      .set({ executed: true })
       .where(inArray(quoteItems.id, items.map((i) => i.id)));
     await tx
       .update(quotes)

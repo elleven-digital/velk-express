@@ -27,6 +27,8 @@ export type PortalQuoteRow = {
 
 const VISIBLE = ["sent", "accepted", "executed"] as const;
 
+export const PORTAL_QUOTES_PER_PAGE = 50;
+
 /** The role is re-read, so a demotion since the session was resolved already applies. */
 export async function isCompanyAdmin(db: Db, session: PortalSession): Promise<boolean> {
   if (session.role !== "admin") return false;
@@ -37,14 +39,15 @@ export async function isCompanyAdmin(db: Db, session: PortalSession): Promise<bo
   return row?.role === "admin";
 }
 
-/** The company's visible quotes, newest first (by when they were sent, else created). */
+/** The company's visible quotes, newest first (by when they were sent, else created), 50 to a page. */
 export async function listPortalQuotes(
   session: PortalSession,
   deps: Deps = {},
-  opts: { status?: "sent" } = {},
+  opts: { status?: "sent"; page?: number } = {},
 ): Promise<Result<PortalQuoteRow[]>> {
   const db = deps.db ?? appDb;
   if (!(await isCompanyAdmin(db, session))) return fail("forbidden");
+  const page = Number.isSafeInteger(opts.page) && opts.page! > 1 ? opts.page! : 1;
   const rows = await db
     .select({
       id: quotes.id,
@@ -62,7 +65,9 @@ export async function listPortalQuotes(
         opts.status ? eq(quotes.status, opts.status) : inArray(quotes.status, [...VISIBLE]),
       ),
     )
-    .orderBy(desc(sql`coalesce(${quotes.sentAt}, ${quotes.createdAt})`), desc(quotes.createdAt));
+    .orderBy(desc(sql`coalesce(${quotes.sentAt}, ${quotes.createdAt})`), desc(quotes.createdAt), desc(quotes.id))
+    .limit(PORTAL_QUOTES_PER_PAGE)
+    .offset((page - 1) * PORTAL_QUOTES_PER_PAGE);
   if (rows.length === 0) return ok([]);
   const items = await db
     .select({
@@ -99,5 +104,16 @@ export async function countSentPortalQuotes(session: PortalSession, deps: Deps =
     .select({ n: sql<number>`count(*)::int` })
     .from(quotes)
     .where(and(eq(quotes.clientId, session.client.id), eq(quotes.status, "sent")));
+  return row?.n ?? 0;
+}
+
+/** How many quotes the company's admin can see in all (for the pages of the list); 0 for anyone else. */
+export async function countPortalQuotes(session: PortalSession, deps: Deps = {}): Promise<number> {
+  const db = deps.db ?? appDb;
+  if (!(await isCompanyAdmin(db, session))) return 0;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(quotes)
+    .where(and(eq(quotes.clientId, session.client.id), inArray(quotes.status, [...VISIBLE])));
   return row?.n ?? 0;
 }

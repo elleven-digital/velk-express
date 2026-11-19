@@ -1,14 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
-import { CopyButton } from "@/components/link-box";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useActionState, useEffect } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { Callout } from "@/components/ui";
 
-export type QuoteSendState = { error?: string; ok?: string; link?: string } | null;
-export type QuoteSendLabels = { send: string; hint: string; copyLink: string; copied: string };
+export type QuoteSendState = { error?: string; ok?: string } | null;
+export type QuoteSendLabels = { send: string; hint: string };
 
-/** "Send" / "Resend": marks the quote as sent, then says who got the e-mail and offers the public link to copy. */
+/**
+ * "Send" / "Resend": marks the quote as sent, then says who got the e-mail. The public link is the
+ * page's own (it shows once the quote is sent), so it is not repeated here; a "Saved" notice left in
+ * the address by the save that led here goes away.
+ */
 export function QuoteSend({
   action,
   quoteId,
@@ -19,6 +23,12 @@ export function QuoteSend({
   labels: QuoteSendLabels;
 }) {
   const [state, formAction] = useActionState(action, null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const hasNotice = useSearchParams().has("ok");
+  useEffect(() => {
+    if (state?.ok && hasNotice) router.replace(pathname, { scroll: false });
+  }, [state, hasNotice, router, pathname]);
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="quoteId" value={quoteId} />
@@ -28,21 +38,9 @@ export function QuoteSend({
       </SubmitButton>
       {state?.error ? <Callout tone="danger" title={state.error} /> : null}
       {state?.ok ? (
-        <div role="status" className="space-y-2 text-[0.875rem]">
-          <p className="font-medium text-ink">{state.ok}</p>
-          {state.link ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                readOnly
-                aria-label={state.link}
-                value={state.link}
-                onFocus={(e) => e.currentTarget.select()}
-                className="min-w-0 flex-1 basis-48 rounded-field border border-line bg-white px-3 py-[7px] font-mono text-[0.8125rem] text-ink"
-              />
-              <CopyButton text={state.link} label={labels.copyLink} copiedLabel={labels.copied} />
-            </div>
-          ) : null}
-        </div>
+        <p role="status" className="text-[0.875rem] font-medium text-ink">
+          {state.ok}
+        </p>
       ) : null}
     </form>
   );

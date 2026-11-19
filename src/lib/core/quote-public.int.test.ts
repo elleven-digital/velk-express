@@ -91,11 +91,11 @@ describe("getPublicQuote", () => {
     const view = await getPublicQuote(quote.token, { db });
     expect(view).not.toBeNull();
     expect(Object.keys(view!).sort()).toEqual(
-      ["acceptedAt", "agencyName", "charge", "currency", "forName", "items", "notes", "status", "title", "totals"].sort(),
+      ["acceptedAt", "agencyName", "charge", "currency", "forName", "items", "notes", "status", "title", "totals", "version"].sort(),
     );
     for (const it of view!.items) {
       expect(Object.keys(it).sort()).toEqual(
-        ["amountCents", "clientApproved", "description", "id", "kind", "monthly", "title"].sort(),
+        ["amountCents", "clientApproved", "description", "id", "includedByAgency", "kind", "monthly", "title"].sort(),
       );
     }
     expect(JSON.stringify(view)).not.toMatch(/bia@secret|Hidden|Secret site|clientId|tok-/);
@@ -253,5 +253,48 @@ describe("approveQuote", () => {
     release();
     await running;
     expect(sent).toHaveLength(1);
+  });
+});
+
+describe("a page that went stale", () => {
+  it("refuses an approval carrying an old version, and approves one carrying the current version", async () => {
+    const { quote, itemIds } = await makeQuote("sent");
+    const seen = (await getPublicQuote(quote.token, { db }))!.version;
+
+    // The owner edits the quote while the page is open.
+    await db.update(quotes).set({ updatedAt: new Date(Date.now() + 5_000) }).where(eq(quotes.id, quote.id));
+    expect(await approveQuote(quote.token, itemIds, { db, send, schedule }, seen)).toEqual({ ok: false, error: "quoteChanged" });
+    expect((await statusOf(quote.id)).status).toBe("sent");
+    expect(await approvedFlags(quote.id)).toEqual([false, false, false]);
+
+    // Reloaded, the page carries the new version.
+    const fresh = (await getPublicQuote(quote.token, { db }))!.version;
+    expect(fresh).not.toBe(seen);
+    expect(await approveQuote(quote.token, itemIds, { db, send, schedule }, fresh)).toEqual({ ok: true, value: undefined });
+    expect((await statusOf(quote.id)).status).toBe("accepted");
+  });
+
+  it("a page opened before another approval is told the quote changed, not that it was decided", async () => {
+    const { quote, itemIds } = await makeQuote("sent");
+    const seen = (await getPublicQuote(quote.token, { db }))!.version;
+    expect((await approveQuote(quote.token, [itemIds[0]], { db, send, schedule })).ok).toBe(true);
+    expect(await approveQuote(quote.token, itemIds, { db, send, schedule }, seen)).toEqual({ ok: false, error: "quoteChanged" });
+    expect(await approvedFlags(quote.id)).toEqual([true, false, false]);
+    // without a version there is no check: the old answer stands
+    expect(await approveQuote(quote.token, itemIds, { db, send, schedule })).toEqual({ ok: false, error: "alreadyDecided" });
+  });
+});
+
+describe("items the agency included", () => {
+  it("an executed item the client did not approve is flagged; an approved one is not", async () => {
+    const { quote, itemIds } = await makeQuote("executed");
+    await db.update(quoteItems).set({ executed: true }).where(eq(quoteItems.id, itemIds[0]));
+    await db.update(quoteItems).set({ executed: true, clientApproved: true }).where(eq(quoteItems.id, itemIds[1]));
+    const view = await getPublicQuote(quote.token, { db });
+    expect(view!.items.map((i) => [i.title, i.clientApproved, i.includedByAgency])).toEqual([
+      ["Website", false, true],
+      ["Support", true, false],
+      ["Setup", false, false],
+    ]);
   });
 });

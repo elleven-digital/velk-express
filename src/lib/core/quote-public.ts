@@ -42,7 +42,11 @@ export type PublicQuote = {
     amountCents: number;
     monthly: boolean;
     clientApproved: boolean;
+    /** Executed by the agency although the client did not approve it. */
+    includedByAgency: boolean;
   }[];
+  /** Which state of the quote this page shows: sent back with the approval to spot a page that went stale. */
+  version: string;
   totals: { oneTimeCents: number; monthlyCents: number };
   /** The quote's live or paid charge, shown to anyone with the link: paid, or pending (with a pay link when it has a provider). */
   charge: {
@@ -57,6 +61,9 @@ export type PublicQuote = {
 
 const TOKEN_MAX = 200;
 const uuid = z.uuid();
+
+/** The quote's `updated_at` (every change to the quote sets it) as the text a page carries back; millisecond precision on both sides. */
+const versionOf = (updatedAt: Date): string => String(updatedAt.getTime());
 
 /** The quote behind a link, or null when the token is unknown or the quote is a draft or archived. */
 export async function getPublicQuote(token: string, deps: Deps = {}): Promise<PublicQuote | null> {
@@ -116,7 +123,9 @@ export async function getPublicQuote(token: string, deps: Deps = {}): Promise<Pu
       amountCents: item.amountCents,
       monthly: item.monthly,
       clientApproved: item.clientApproved,
+      includedByAgency: item.executed && !item.clientApproved,
     })),
+    version: versionOf(quote.updatedAt),
     totals: decidedTotals(quote.status, items),
     charge: chargeRow
       ? {
@@ -136,8 +145,12 @@ export async function getPublicQuote(token: string, deps: Deps = {}): Promise<Pu
  * already approved or executed is `alreadyDecided`; a missing, draft or archived one is `notFound`.
  * Ids that are not items of this quote are dropped; none left is `nothingSelected`. After the commit,
  * every owner with a password is told, in their own language, after the response.
+ *
+ * `version` is what the page carried (`PublicQuote.version`): when the quote changed since (the owner
+ * edited it, or another approval came first) the answer is `quoteChanged`, so the visitor reloads and
+ * decides on what is there now. Without it, the check is skipped.
  */
-export async function approveQuote(token: string, itemIds: string[], deps: Deps = {}): Promise<Result> {
+export async function approveQuote(token: string, itemIds: string[], deps: Deps = {}, version?: string): Promise<Result> {
   if (typeof token !== "string" || !token || token.length > TOKEN_MAX) return fail("notFound");
   const db = deps.db ?? appDb;
   const send = deps.send ?? sendMail;
@@ -146,6 +159,7 @@ export async function approveQuote(token: string, itemIds: string[], deps: Deps 
   const done = await transact(db, async (tx) => {
     const [quote] = await tx.select().from(quotes).where(eq(quotes.token, token)).for("update");
     if (!quote || quote.status === "draft" || quote.status === "archived") throw new Abort("notFound");
+    if (version !== undefined && version !== versionOf(quote.updatedAt)) throw new Abort("quoteChanged");
     if (quote.status !== "sent") throw new Abort("alreadyDecided");
 
     const valid = wanted.length
