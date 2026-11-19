@@ -2,6 +2,7 @@ import "server-only";
 import { and, between, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isStaff } from "@/lib/access";
+import { agencyTimeZone } from "@/lib/agency";
 import type { TeamSession } from "@/lib/auth/session";
 import { charges, clients, db as appDb, hourPurchases, tickets, timeEntries, type Db, type HoursMode } from "@/lib/db";
 import { getDict, type Locale } from "@/lib/i18n";
@@ -32,8 +33,9 @@ export type HoursSummary = {
 };
 
 /**
- * The hours of one client in one cycle (the current one by default), or null when the client does
- * not exist. It does not check access: the caller already did, and decides what each viewer sees.
+ * The hours of one client in one cycle (by default the current one, in the agency's time zone), or
+ * null when the client does not exist. It does not check access: the caller already did, and
+ * decides what each viewer sees.
  */
 export async function getHoursSummary(
   clientId: string,
@@ -41,7 +43,7 @@ export async function getHoursSummary(
   deps: { db?: Db; now?: () => Date } = {},
 ): Promise<HoursSummary | null> {
   const db = deps.db ?? appDb;
-  const month = cycle ?? cycleKey(deps.now?.());
+  const month = cycle ?? cycleKey(deps.now?.() ?? new Date(), await agencyTimeZone(db));
   const { start, end } = cycleRange(month);
 
   const [client] = await db.select().from(clients).where(eq(clients.id, clientId));
@@ -84,8 +86,8 @@ function isRealDay(day: string): boolean {
 
 /**
  * Logs time on a ticket the actor can see (any type, open or closed, any hours mode of the client).
- * `duration` is what was typed ("1h30"); `workedOn` defaults to today in the cycle zone and cannot
- * be after it. The client is always the ticket's.
+ * `duration` is what was typed ("1h30"); `workedOn` defaults to today in the agency's time zone and
+ * cannot be after it. The client is always the ticket's.
  */
 export async function addTimeEntry(
   actor: TeamSession,
@@ -99,7 +101,7 @@ export async function addTimeEntry(
   const minutes = parseDuration(String(input.duration ?? ""));
   if (minutes === null) return fail("invalidDuration");
   if ((input.note ?? "").trim().length > NOTE_MAX_CHARS) return fail("tooLong");
-  const today = todayInCycleZone(deps.now?.());
+  const today = todayInCycleZone(deps.now?.() ?? new Date(), await agencyTimeZone(db));
   const workedOn = input.workedOn?.trim() || today;
   if (!isRealDay(workedOn)) return fail("invalidDate");
   // "YYYY-MM-DD" strings order the same as the days they name.

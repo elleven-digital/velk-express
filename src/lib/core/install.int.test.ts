@@ -17,6 +17,7 @@ const valid: InstallInput = {
   password: "correct horse",
   currency: "BRL",
   locale: "pt",
+  timeZone: "Europe/Lisbon",
   appUrl: "https://painel.acme.com/",
 };
 
@@ -41,8 +42,10 @@ describe("installAgency", () => {
     const users = await db.execute<{ email: string; role: string; name: string }>(sql`SELECT email, role, name FROM users`);
     expect(users).toHaveLength(1);
     expect(users[0]).toMatchObject({ email: "ana@x.com", role: "owner", name: "Ana" });
-    const ag = await db.execute<{ name: string; currency: string; locale: string }>(sql`SELECT name, currency, locale FROM agency`);
-    expect(ag[0]).toEqual({ name: "Studio Acme", currency: "BRL", locale: "pt" });
+    const ag = await db.execute<{ name: string; currency: string; locale: string; time_zone: string }>(
+      sql`SELECT name, currency, locale, time_zone FROM agency`,
+    );
+    expect(ag[0]).toEqual({ name: "Studio Acme", currency: "BRL", locale: "pt", time_zone: "Europe/Lisbon" });
     const owners = await db.execute<{ locale: string | null }>(sql`SELECT locale FROM users WHERE role = 'owner'`);
     expect(owners[0].locale).toBeNull(); // the agency language applies until the owner picks their own
     const inst = await db.execute<{ app_url: string | null }>(sql`SELECT app_url FROM instance`);
@@ -78,6 +81,13 @@ describe("installAgency", () => {
     await db.execute(sql`DELETE FROM instance`);
     expect((await installAgency(valid, db)).ok).toBe(true);
     expect(await count("instance")).toBe(1);
+  });
+
+  it("refuses a time zone the runtime does not know, with its own error, and creates nothing", async () => {
+    for (const timeZone of ["Mars/Base", "", "+03:00"]) {
+      expect(await installAgency({ ...valid, timeZone }, db)).toEqual({ ok: false, error: "invalidTimeZone" });
+    }
+    expect(await count("agency")).toBe(0);
   });
 
   it.each([

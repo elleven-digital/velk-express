@@ -10,6 +10,7 @@ import { listLabels } from "@/lib/core/labels";
 import { CURRENCIES, getInstallationStatus, getPaymentSettings } from "@/lib/core/settings";
 import { fmt, LOCALES, LOCALE_NAMES } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
+import { timeZoneGroups, timeZoneOrDefault } from "@/lib/time-zone";
 import { isNewer, UPDATE_GUIDE_URL } from "@/lib/update-check";
 import { db, agency as agencyTable, users } from "@/lib/db";
 import {
@@ -135,10 +136,18 @@ export default async function SettingsPage() {
                   currency: s.currency,
                   language: s.language,
                   languageHint: s.languageHint,
+                  timeZone: s.timeZone,
+                  timeZoneHint: s.timeZoneHint,
                   save: s.save,
                 }}
-                values={{ name: name, currency: brand?.currency ?? "BRL", locale: brand?.locale ?? "en" }}
+                values={{
+                  name: name,
+                  currency: brand?.currency ?? "BRL",
+                  locale: brand?.locale ?? "en",
+                  timeZone: timeZoneOrDefault(brand?.timeZone),
+                }}
                 currencies={[...CURRENCIES]}
+                timeZones={timeZoneGroups()}
                 locales={LOCALES.map((value) => ({ value, label: LOCALE_NAMES[value] }))}
               />
             </Card>

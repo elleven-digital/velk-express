@@ -47,7 +47,7 @@ const RECENT_TICKETS = 5;
 export async function getPortalHome(
   session: PortalSession,
   db: Db = appDb,
-  deps: Pick<ChargeDeps, "providers"> = {},
+  deps: Pick<ChargeDeps, "providers"> & { now?: () => Date } = {},
 ): Promise<PortalHome> {
   const clientId = session.client.id;
   const [client] = await db.select().from(clients).where(eq(clients.id, clientId));
@@ -60,7 +60,7 @@ export async function getPortalHome(
     session.role === "admin" ? listPortalQuotes(session, { db }, { status: "sent" }) : null,
     getPortalPaymentsHome(session, { db, providers: deps.providers }),
   ]);
-  const summary = await getHoursSummary(clientId, undefined, { db });
+  const summary = await getHoursSummary(clientId, undefined, { db, now: deps.now });
   const hours: PortalHours | null =
     summary && summary.mode === "package"
       ? {

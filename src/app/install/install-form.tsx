@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { Callout, Field, Input, Select } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { TimeZoneSelect } from "@/components/time-zone-select";
+import type { TimeZoneGroup } from "@/lib/time-zone";
 import { installAction, type InstallState } from "./actions";
 
 export type InstallLabels = {
@@ -16,6 +18,8 @@ export type InstallLabels = {
   publicUrlFixed: string;
   currency: string;
   language: string;
+  timeZone: string;
+  timeZoneHint: string;
   submit: string;
 };
 
@@ -26,6 +30,7 @@ export function InstallForm({
   defaultLocale,
   localeOptions,
   currencies,
+  timeZones,
   minPassword,
 }: {
   labels: InstallLabels;
@@ -35,6 +40,7 @@ export function InstallForm({
   defaultLocale: string;
   localeOptions: { value: string; label: string }[];
   currencies: string[];
+  timeZones: TimeZoneGroup[];
   minPassword: number;
 }) {
   const [state, action] = useActionState<InstallState, FormData>(installAction, null);
@@ -87,6 +93,11 @@ export function InstallForm({
           </Select>
         </Field>
       </div>
+
+      <Field label={labels.timeZone} htmlFor="timeZone" hint={labels.timeZoneHint}>
+        {/* starts on the browser's zone when it is in the list, else São Paulo */}
+        <TimeZoneSelect id="timeZone" name="timeZone" groups={timeZones} value={v?.timeZone} preferBrowser />
+      </Field>
 
       <SubmitButton size="lg" className="w-full">
         {labels.submit}

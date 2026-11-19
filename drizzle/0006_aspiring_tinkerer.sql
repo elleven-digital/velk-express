@@ -1,0 +1,1 @@
+ALTER TABLE "agency" ADD COLUMN "time_zone" text DEFAULT 'America/Sao_Paulo' NOT NULL;

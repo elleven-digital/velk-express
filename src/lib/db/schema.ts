@@ -55,6 +55,8 @@ export const agency = pgTable(
     logoFileId: uuid("logo_file_id"),
     currency: text("currency").notNull().default("BRL"),
     locale: text("locale").notNull().default("en"),
+    // IANA zone of the hours cycles, "today" and server-rendered times (see src/lib/time-zone.ts).
+    timeZone: text("time_zone").notNull().default("America/Sao_Paulo"),
     // Team visibility for collaborators (owner and manager always see everything).
     collabClientScope: collabScope("collab_client_scope").notNull().default("assigned"),
     collabTicketScope: collabScope("collab_ticket_scope").notNull().default("all"),

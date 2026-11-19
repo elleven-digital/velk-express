@@ -1,11 +1,8 @@
-/** The time zone every hours cycle (a calendar month) and "today" are read in. One for the whole install. */
-export const CYCLE_TIME_ZONE = "America/Sao_Paulo";
-
 const CYCLE_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
-function zoneParts(at: Date): { year: string; month: string; day: string } {
+function zoneParts(at: Date, timeZone: string): { year: string; month: string; day: string } {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: CYCLE_TIME_ZONE,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -14,15 +11,15 @@ function zoneParts(at: Date): { year: string; month: string; day: string } {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
-/** The cycle ("YYYY-MM") a moment falls in, in the cycle time zone. */
-export function cycleKey(at: Date = new Date()): string {
-  const { year, month } = zoneParts(at);
+/** The cycle ("YYYY-MM") a moment falls in, in the agency's time zone. */
+export function cycleKey(at: Date, timeZone: string): string {
+  const { year, month } = zoneParts(at, timeZone);
   return `${year}-${month}`;
 }
 
-/** The calendar day ("YYYY-MM-DD") a moment falls on, in the cycle time zone. */
-export function todayInCycleZone(at: Date = new Date()): string {
-  const { year, month, day } = zoneParts(at);
+/** The calendar day ("YYYY-MM-DD") a moment falls on, in the agency's time zone. */
+export function todayInCycleZone(at: Date, timeZone: string): string {
+  const { year, month, day } = zoneParts(at, timeZone);
   return `${year}-${month}-${day}`;
 }
 

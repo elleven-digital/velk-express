@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AgencyTimeZoneProvider } from "@/components/agency-time-zone";
 import { ShellNav, type NavItem } from "@/components/shell-nav";
 import { Callout, buttonClasses } from "@/components/ui";
 import { getAgency, logoPath } from "@/lib/agency";
@@ -67,7 +68,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           {fmt(t.panel.updateBody, { current: APP_VERSION })}
         </Callout>
       ) : null}
-      {children}
+      <AgencyTimeZoneProvider timeZone={agency.timeZone}>{children}</AgencyTimeZoneProvider>
     </ShellNav>
   );
 }

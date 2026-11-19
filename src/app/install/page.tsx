@@ -5,6 +5,7 @@ import { detectAppUrl } from "@/lib/app-url";
 import { LOCALES, LOCALE_NAMES, fmt } from "@/lib/i18n";
 import { getPublicDict } from "@/lib/i18n/server";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
+import { timeZoneGroups } from "@/lib/time-zone";
 import { InstallForm } from "./install-form";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export default async function InstallPage() {
           publicUrlFixed: i.publicUrlFixed,
           currency: i.currency,
           language: i.language,
+          timeZone: i.timeZone,
+          timeZoneHint: i.timeZoneHint,
           submit: i.submit,
         }}
         detectedUrl={detectedUrl}
@@ -42,6 +45,7 @@ export default async function InstallPage() {
         defaultLocale={locale}
         localeOptions={LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }))}
         currencies={["BRL", "USD", "EUR"]}
+        timeZones={timeZoneGroups()}
         minPassword={MIN_PASSWORD_LENGTH}
       />
     </AuthShell>

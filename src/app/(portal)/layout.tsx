@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AgencyAvatar } from "@/components/agency-avatar";
+import { AgencyTimeZoneProvider } from "@/components/agency-time-zone";
 import { CompanySwitcher } from "@/components/company-switcher";
 import { Icon } from "@/components/icons";
 import { BottomTabs, Menu, TabNav, type NavItem } from "@/components/shell-nav";
@@ -122,7 +123,7 @@ export default async function PortalLayout({ children }: { children: React.React
       </div>
 
       <main className="flex-1 w-full max-w-[1040px] mx-auto px-4 sm:px-6 lg:px-10 pt-5 lg:pt-8 pb-10 lg:pb-12">
-        {children}
+        <AgencyTimeZoneProvider timeZone={agency.timeZone}>{children}</AgencyTimeZoneProvider>
       </main>
 
       <BottomTabs items={items} label={t.ui.sections} moreLabel={t.ui.more} closeLabel={t.ui.close} max={5} />

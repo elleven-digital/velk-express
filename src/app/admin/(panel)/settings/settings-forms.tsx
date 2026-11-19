@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { AgencyAvatar } from "@/components/agency-avatar";
 import { Callout, Checkbox, Field, Input, Select } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { TimeZoneSelect } from "@/components/time-zone-select";
+import type { TimeZoneGroup } from "@/lib/time-zone";
 import type { SettingsState } from "./settings-state";
 
 type Action = (prev: SettingsState, formData: FormData) => Promise<SettingsState>;
@@ -25,6 +27,8 @@ export type AgencyFormLabels = {
   currency: string;
   language: string;
   languageHint: string;
+  timeZone: string;
+  timeZoneHint: string;
   save: string;
 };
 
@@ -34,12 +38,14 @@ export function AgencyForm({
   values,
   currencies,
   locales,
+  timeZones,
 }: {
   action: Action;
   labels: AgencyFormLabels;
-  values: { name: string; currency: string; locale: string };
+  values: { name: string; currency: string; locale: string; timeZone: string };
   currencies: string[];
   locales: { value: string; label: string }[];
+  timeZones: TimeZoneGroup[];
 }) {
   const [state, run] = useActionState(action, null);
   const typed = state?.values;
@@ -69,6 +75,10 @@ export function AgencyForm({
           </Select>
         </Field>
       </div>
+      <Field label={labels.timeZone} htmlFor="timeZone" hint={labels.timeZoneHint}>
+        {/* a forged zone sent back with the error is not in the list: the saved one shows instead */}
+        <TimeZoneSelect id="timeZone" name="timeZone" groups={timeZones} value={typed?.timeZone} fallback={values.timeZone} />
+      </Field>
       <SubmitButton>{labels.save}</SubmitButton>
     </form>
   );

@@ -15,6 +15,7 @@ import {
   type User,
 } from "@/lib/db";
 import { getDict, type Locale } from "@/lib/i18n";
+import { agencyTimeZone } from "@/lib/agency";
 import { cycleKey, todayInCycleZone } from "@/lib/hours";
 import { lastAuthorType, whoseTurn, type Turn } from "@/lib/turn";
 import { unreadCountSql } from "@/lib/unread";
@@ -55,7 +56,7 @@ export type TeamTicketView = {
   timeEvents: { id: string; at: number; iso: string; name: string; mine: boolean; minutes: number }[];
   /** The client's hours for the CURRENT cycle: only for the team-only and package modes, else null. */
   hours: { mode: "internal" | "package"; cycle: string; usedMinutes: number; balanceMinutes: number; totalMinutes: number } | null;
-  /** Today in the cycle time zone: the default and the latest day a time entry can have. */
+  /** Today in the agency's time zone: the default and the latest day a time entry can have. */
   today: string;
   /** ISO instant taken from the database clock before anything was read; what `MarkRead` sends back. */
   renderedAt: string;
@@ -130,8 +131,10 @@ export async function getTeamTicketView(
   const timeEvents = time.entries
     .map((e) => ({ id: e.id, at: new Date(e.createdAt).getTime(), iso: e.createdAt, name: e.authorName, mine: e.mine, minutes: e.minutes }))
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+  const now = deps.now?.() ?? new Date();
+  const timeZone = await agencyTimeZone(db);
   const summary =
-    row.client.hoursMode === "off" ? null : await getHoursSummary(ticket.clientId, cycleKey(deps.now?.()), { db, now: deps.now });
+    row.client.hoursMode === "off" ? null : await getHoursSummary(ticket.clientId, cycleKey(now, timeZone), { db });
   const hours =
     summary && (summary.mode === "internal" || summary.mode === "package")
       ? {
@@ -165,7 +168,7 @@ export async function getTeamTicketView(
     time,
     timeEvents,
     hours,
-    today: todayInCycleZone(deps.now?.()),
+    today: todayInCycleZone(now, timeZone),
     renderedAt,
   };
 }

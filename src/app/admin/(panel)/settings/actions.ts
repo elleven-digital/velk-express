@@ -40,9 +40,10 @@ export async function saveAgencyAction(_prev: SettingsState, formData: FormData)
     currency: String(formData.get("currency") ?? ""),
     locale: String(formData.get("locale") ?? ""),
   });
-  const typed = formValues(formData, ["name", "currency", "locale"]);
+  const typed = formValues(formData, ["name", "currency", "locale", "timeZone"]);
   if (!input.success) return error("invalid", typed);
-  const res = await updateAgency(actor, input.data);
+  // The core checks the zone against the runtime's list: a forged one is "invalidTimeZone".
+  const res = await updateAgency(actor, { ...input.data, timeZone: String(formData.get("timeZone") ?? "") });
   if (!res.ok) return error(res.error, typed);
   done();
   return { ok: t.settings.saved };

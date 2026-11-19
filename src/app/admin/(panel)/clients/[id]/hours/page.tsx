@@ -19,6 +19,7 @@ import { getClientCached } from "@/lib/core/clients";
 import { getClientHoursCycle } from "@/lib/core/hours";
 import { formatCycle, formatDay, formatMinutes, formatMoney, moneyPlaceholder } from "@/lib/format";
 import { cycleKey, isCycle, shiftCycle, todayInCycleZone } from "@/lib/hours";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 import { fmt } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
 import { addPurchaseAction, deletePurchaseAction } from "./actions";
@@ -51,8 +52,10 @@ export default async function ClientHoursPage({
   if (!found.ok) notFound();
   const client = found.value;
 
-  const cycle = rawCycle && isCycle(rawCycle) ? rawCycle : cycleKey();
-  const [res, agency, { t, locale }] = await Promise.all([getClientHoursCycle(me, client.id, cycle), getAgency(), getUserDict()]);
+  const agency = await getAgency();
+  const timeZone = agency?.timeZone ?? DEFAULT_TIME_ZONE;
+  const cycle = rawCycle && isCycle(rawCycle) ? rawCycle : cycleKey(new Date(), timeZone);
+  const [res, { t, locale }] = await Promise.all([getClientHoursCycle(me, client.id, cycle), getUserDict()]);
   if (!res.ok) notFound();
   const { summary, entries, purchases } = res.value;
   const currency = (agency?.currency ?? "BRL") as "BRL" | "USD";
@@ -183,7 +186,7 @@ export default async function ClientHoursPage({
                             {p.priceCents !== null ? (
                               <span className="tabular">{formatMoney(p.priceCents, (charge?.currency ?? currency) as Currency, locale)}</span>
                             ) : null}
-                            <span className="tabular">{formatDay(todayInCycleZone(new Date(p.createdAt)), locale)}</span>
+                            <span className="tabular">{formatDay(todayInCycleZone(new Date(p.createdAt), timeZone), locale)}</span>
                           </MetaLine>
                         </div>
                         <span className="flex-none font-medium text-ink tabular">+{formatMinutes(p.minutes)}</span>

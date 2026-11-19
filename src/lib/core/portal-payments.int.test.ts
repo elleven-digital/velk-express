@@ -309,6 +309,15 @@ describe("buyHours", () => {
     const [row] = await db.select().from(charges);
     expect(row.label).toMatch(/^Horas extras 1h — /);
   });
+
+  it("buyHours files the purchase under the cycle of the agency's time zone", async () => {
+    await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
+    // 08:00 on 1 February in Tokyo, still 31 January in São Paulo
+    const res = await buyHours(admin(), 1, { db, providers: both, now: () => new Date("2026-01-31T23:00:00Z") });
+    if (!res.ok) throw new Error(res.error);
+    const [purchase] = await db.select().from(hourPurchases);
+    expect(purchase.cycle).toBe("2026-02");
+  });
 });
 
 describe("portal money elsewhere", () => {

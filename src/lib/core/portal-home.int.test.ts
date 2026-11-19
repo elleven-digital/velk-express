@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { resetTestDb } from "@/test/db";
 import type { Db } from "@/lib/db/client";
 import { todayInCycleZone } from "@/lib/hours";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 import { agency, clientMemberships, clientUsers, clients, sites, tickets, timeEntries, users, type Client, type ClientRole, type ClientUser } from "@/lib/db";
 import {
   PORTAL_COOKIE,
@@ -204,7 +205,7 @@ describe("getPortalHome hours", () => {
       .insert(tickets)
       .values({ clientId: client.id, number: Math.floor(Math.random() * 1e6), title: "T", type, createdByType: "client", createdById: person.id })
       .returning({ id: tickets.id });
-    const day = todayInCycleZone();
+    const day = todayInCycleZone(new Date(), DEFAULT_TIME_ZONE);
     await db.insert(timeEntries).values({ ticketId: ticket.id, clientId: client.id, minutes, workedOn: day, note: "secret note" });
   };
 
@@ -237,5 +238,21 @@ describe("getPortalHome hours", () => {
     const b = await getPortalHome(asPortal(B, "admin"), db);
     expect(a.hours).toMatchObject({ includedMinutes: 600, usedMinutes: 100 });
     expect(b.hours).toMatchObject({ includedMinutes: 120, usedMinutes: 20 });
+  });
+
+  it("an agency in Tokyo shows February's balance at 08:00 on 1 February there (still 31 January in São Paulo)", async () => {
+    await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
+    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 600 }).where(eq(clients.id, A.id));
+    const [ticket] = await db
+      .insert(tickets)
+      .values({ clientId: A.id, number: 1, title: "T", type: "support", createdByType: "client", createdById: person.id })
+      .returning({ id: tickets.id });
+    await db.insert(timeEntries).values([
+      { ticketId: ticket.id, clientId: A.id, minutes: 60, workedOn: "2026-02-01" },
+      { ticketId: ticket.id, clientId: A.id, minutes: 45, workedOn: "2026-01-31" },
+    ]);
+    const now = () => new Date("2026-01-31T23:00:00Z");
+    const home = await getPortalHome(asPortal(A, "admin"), db, { now });
+    expect(home.hours).toMatchObject({ cycle: "2026-02", usedMinutes: 60, balanceMinutes: 540 });
   });
 });

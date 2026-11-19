@@ -147,7 +147,7 @@ describe("applying labels", () => {
 
 describe("settings stay owner-only now that managers open the page", () => {
   it("a manager calling an owner-only settings action is forbidden", async () => {
-    expect(await updateAgency(manager, { name: "Hacked", currency: "USD", locale: "en" }, { db })).toEqual({ ok: false, error: "forbidden" });
+    expect(await updateAgency(manager, { name: "Hacked", currency: "USD", locale: "en", timeZone: "UTC" }, { db })).toEqual({ ok: false, error: "forbidden" });
     expect(await updateCollabVisibility(manager, { clientScope: "all", ticketScope: "all", seesUnassigned: true }, { db })).toEqual({ ok: false, error: "forbidden" });
     expect(await removeAgencyLogo(manager, { db })).toEqual({ ok: false, error: "forbidden" });
     const [a] = await db.select().from(agency);

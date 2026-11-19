@@ -345,3 +345,59 @@ describe("hour purchases and the client's cycle", () => {
     expect(res.value.purchases.map((p) => p.minutes)).toEqual([70]);
   });
 });
+
+describe("the agency's time zone", () => {
+  const asTeam = (user: User): TeamSession => ({ userType: "agency", user });
+  // 08:00 on 1 February in Tokyo is 23:00 UTC on 31 January, still the 31st in São Paulo.
+  const tokyoMorning = () => new Date("2026-01-31T23:00:00Z");
+
+  it("an agency in Tokyo logging at 08:00 on 1 February puts the entry and the balance in February", async () => {
+    await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
+    const owner = asTeam((await db.select().from(users))[0]);
+    const t = await ticket(A.id, "support");
+
+    // no day: today in Tokyo, and the 1st is not in the future there
+    expect((await addTimeEntry(owner, t.id, { duration: "1h" }, { db, now: tokyoMorning })).ok).toBe(true);
+    expect((await addTimeEntry(owner, t.id, { duration: "30", workedOn: "2026-02-01" }, { db, now: tokyoMorning })).ok).toBe(true);
+    expect(await addTimeEntry(owner, t.id, { duration: "30", workedOn: "2026-02-02" }, { db, now: tokyoMorning })).toEqual({
+      ok: false,
+      error: "futureDate",
+    });
+    expect((await db.select().from(timeEntries)).map((r) => r.workedOn)).toEqual(["2026-02-01", "2026-02-01"]);
+
+    const summary = await getHoursSummary(A.id, undefined, { db, now: tokyoMorning });
+    expect(summary).toMatchObject({ cycle: "2026-02", usedMinutes: 90, balanceMinutes: 510 });
+  });
+
+  it("the same instant is still January for an agency in São Paulo (the default)", async () => {
+    const owner = asTeam((await db.select().from(users))[0]);
+    const t = await ticket(A.id, "support");
+    expect(await addTimeEntry(owner, t.id, { duration: "30", workedOn: "2026-02-01" }, { db, now: tokyoMorning })).toEqual({
+      ok: false,
+      error: "futureDate",
+    });
+    await addTimeEntry(owner, t.id, { duration: "1h" }, { db, now: tokyoMorning });
+    expect((await db.select().from(timeEntries)).map((r) => r.workedOn)).toEqual(["2026-01-31"]);
+    expect((await getHoursSummary(A.id, undefined, { db, now: tokyoMorning }))?.cycle).toBe("2026-01");
+  });
+
+  it("changing the zone mid-month moves only the boundary from then on; nothing stored changes", async () => {
+    const owner = asTeam((await db.select().from(users))[0]);
+    const t = await ticket(A.id, "support");
+    await addTimeEntry(owner, t.id, { duration: "1h", workedOn: "2026-01-20" }, { db, now: tokyoMorning });
+    await addHourPurchase(owner, A.id, { duration: "2h", cycle: "2026-01" }, { db });
+    const before = { entries: await db.select().from(timeEntries), purchases: await db.select().from(hourPurchases) };
+
+    await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
+    expect(await db.select().from(timeEntries)).toEqual(before.entries);
+    expect(await db.select().from(hourPurchases)).toEqual(before.purchases);
+    // the current cycle now turns over by Tokyo's clock; January's numbers are the same as before
+    expect((await getHoursSummary(A.id, undefined, { db, now: tokyoMorning }))?.cycle).toBe("2026-02");
+    expect(await getHoursSummary(A.id, "2026-01", { db })).toMatchObject({ usedMinutes: 60, purchasedMinutes: 120 });
+  });
+
+  it("a stored zone the runtime no longer knows falls back to São Paulo instead of breaking", async () => {
+    await db.update(agency).set({ timeZone: "Mars/Base" }).where(eq(agency.id, 1));
+    expect((await getHoursSummary(A.id, undefined, { db, now: tokyoMorning }))?.cycle).toBe("2026-01");
+  });
+});

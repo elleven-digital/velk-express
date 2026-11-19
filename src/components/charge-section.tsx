@@ -1,5 +1,6 @@
 import { ChargeCreate } from "@/components/charge-create";
 import { ChargePanel, type ChargeActions, type ChargeLabels } from "@/components/charge-panel";
+import { getAgency } from "@/lib/agency";
 import type { TeamSession } from "@/lib/auth/session";
 import { cancelChargeAction, createSourceChargeAction, markChargePaidAction, attachDocumentAction, removeDocumentAction } from "@/app/admin/(panel)/charges/actions";
 import { chargeStatusMeta, isLiveStatus } from "@/lib/charge-utils";
@@ -7,9 +8,9 @@ import { chargeFor, type ChargeView } from "@/lib/core/charges";
 import { chargeOptions } from "@/lib/core/charge-options";
 import type { Currency } from "@/lib/core/settings";
 import { formatMoment, formatMoney, moneyInputValue, moneyPlaceholder } from "@/lib/format";
-import { CYCLE_TIME_ZONE } from "@/lib/hours";
 import { fmt, type Dict, type Locale } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 
 /** The texts of the charge screens, picked from the dictionary. */
 export function chargeLabelsOf(t: Dict): ChargeLabels {
@@ -92,8 +93,9 @@ export async function ChargeSection({
   currency?: string;
   note?: string;
 }) {
-  const [{ t, locale }, found] = await Promise.all([getUserDict(), chargeFor(me, { source, sourceId })]);
+  const [{ t, locale }, found, agency] = await Promise.all([getUserDict(), chargeFor(me, { source, sourceId }), getAgency()]);
   const charge = found.ok ? found.value : null;
+  const timeZone = agency?.timeZone ?? DEFAULT_TIME_ZONE;
 
   if (charge) {
     const meta = chargeStatusMeta(charge.status);
@@ -104,7 +106,7 @@ export async function ChargeSection({
           chargeId={charge.id}
           status={{ label: t.charges[meta.key], tone: meta.tone }}
           amount={chargeAmount(t, locale, charge)}
-          paidOn={charge.paidAt ? fmt(t.charges.paidOn, { date: formatMoment(new Date(charge.paidAt), locale, new Date(), CYCLE_TIME_ZONE) }) : null}
+          paidOn={charge.paidAt ? fmt(t.charges.paidOn, { date: formatMoment(new Date(charge.paidAt), locale, new Date(), timeZone) }) : null}
           payUrl={live ? charge.payUrl : null}
           canMarkPaid={charge.canAct && charge.kind === "one_time" && charge.status === "pending"}
           document={charge.document}

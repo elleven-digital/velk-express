@@ -17,6 +17,7 @@ export type InstallValues = {
   appUrl: string;
   currency: string;
   locale: string;
+  timeZone: string;
 };
 
 export type InstallState = { error: string; values: InstallValues } | null;
@@ -34,6 +35,7 @@ export async function installAction(_prev: InstallState, formData: FormData): Pr
     appUrl: text(formData, "appUrl"),
     currency: text(formData, "currency"),
     locale: text(formData, "locale"),
+    timeZone: text(formData, "timeZone"),
   };
   const locale = isLocale(values.locale) ? values.locale : await getPublicLocale();
   const t = (await getDict(locale)).install;
@@ -50,6 +52,7 @@ export async function installAction(_prev: InstallState, formData: FormData): Pr
       password: text(formData, "password"),
       currency: values.currency as "BRL" | "USD" | "EUR",
       locale,
+      timeZone: values.timeZone,
       appUrl,
     });
   } catch (err) {
@@ -69,6 +72,11 @@ export async function installAction(_prev: InstallState, formData: FormData): Pr
     redirect(signedIn ? "/admin" : "/admin/login");
   }
   if (res.error === "alreadyInstalled") redirect("/admin/login");
-  const message = res.error === "invalid" ? fmt(t.errors.invalid, { min: MIN_PASSWORD_LENGTH }) : t.errors.generic;
+  const message =
+    res.error === "invalid"
+      ? fmt(t.errors.invalid, { min: MIN_PASSWORD_LENGTH })
+      : res.error === "invalidTimeZone"
+        ? t.errors.invalidTimeZone
+        : t.errors.generic;
   return { error: message, values };
 }

@@ -2,16 +2,30 @@ import { describe, expect, it } from "vitest";
 import { cycleKey, cycleRange, isCycle, minutesToHoursInput, parseDuration, shiftCycle, todayInCycleZone } from "./hours";
 
 describe("cycleKey", () => {
-  it("uses São Paulo time at the month boundary", () => {
-    expect(cycleKey(new Date("2026-12-01T01:00:00Z"))).toBe("2026-11");
-    expect(cycleKey(new Date("2026-12-01T03:00:00Z"))).toBe("2026-12");
+  it("uses the given zone at the month boundary", () => {
+    expect(cycleKey(new Date("2026-12-01T01:00:00Z"), "America/Sao_Paulo")).toBe("2026-11");
+    expect(cycleKey(new Date("2026-12-01T03:00:00Z"), "America/Sao_Paulo")).toBe("2026-12");
+  });
+
+  it("puts the same instant in different cycles for different zones", () => {
+    // 01:00 UTC on 1 December: already December in Lisbon, still November in São Paulo.
+    const at = new Date("2026-12-01T01:00:00Z");
+    expect(cycleKey(at, "Europe/Lisbon")).toBe("2026-12");
+    expect(cycleKey(at, "America/Sao_Paulo")).toBe("2026-11");
+    // 23:00 UTC on 31 January: February in Tokyo, January in São Paulo and in UTC.
+    const late = new Date("2026-01-31T23:00:00Z");
+    expect(cycleKey(late, "Asia/Tokyo")).toBe("2026-02");
+    expect(cycleKey(late, "America/Sao_Paulo")).toBe("2026-01");
+    expect(cycleKey(late, "UTC")).toBe("2026-01");
   });
 });
 
 describe("todayInCycleZone", () => {
-  it("is the São Paulo day late in the evening", () => {
-    expect(todayInCycleZone(new Date("2026-12-01T01:00:00Z"))).toBe("2026-11-30");
-    expect(todayInCycleZone(new Date("2026-12-01T03:00:00Z"))).toBe("2026-12-01");
+  it("is the day in the given zone", () => {
+    expect(todayInCycleZone(new Date("2026-12-01T01:00:00Z"), "America/Sao_Paulo")).toBe("2026-11-30");
+    expect(todayInCycleZone(new Date("2026-12-01T03:00:00Z"), "America/Sao_Paulo")).toBe("2026-12-01");
+    expect(todayInCycleZone(new Date("2026-12-01T01:00:00Z"), "Europe/Lisbon")).toBe("2026-12-01");
+    expect(todayInCycleZone(new Date("2026-01-31T23:00:00Z"), "Asia/Tokyo")).toBe("2026-02-01");
   });
 });
 

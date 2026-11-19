@@ -4,6 +4,7 @@ import { getAppUrl } from "@/lib/app-url";
 import type { PortalSession } from "@/lib/auth/session";
 import { agency, charges, clients, db as appDb, hourPurchases, type ChargeKind, type ChargeStatus, type Db } from "@/lib/db";
 import { cycleKey } from "@/lib/hours";
+import { timeZoneOrDefault } from "@/lib/time-zone";
 import { formatMinutes } from "@/lib/format";
 import { fmt, getDict, isLocale, type Locale } from "@/lib/i18n";
 import { availableProviders, expireOpenCheckout, insertCharge, payUrlFor, type ChargeDeps } from "./charges";
@@ -145,7 +146,7 @@ const MAX_CENTS = 2_147_483_647;
 export async function buyHours(
   session: PortalSession,
   hours: number,
-  deps: ChargeDeps = {},
+  deps: ChargeDeps & { now?: () => Date } = {},
 ): Promise<Result<{ payUrl: string }>> {
   const db = deps.db ?? appDb;
   if (!(await isCompanyAdmin(db, session))) return fail("forbidden");
@@ -154,7 +155,12 @@ export async function buyHours(
 
   const res = await transact(db, async (tx) => {
     const [brand] = await tx
-      .select({ currency: agency.currency, locale: agency.locale, defaultProvider: agency.defaultPaymentProvider })
+      .select({
+        currency: agency.currency,
+        locale: agency.locale,
+        defaultProvider: agency.defaultPaymentProvider,
+        timeZone: agency.timeZone,
+      })
       .from(agency)
       .where(eq(agency.id, 1));
     if (!brand) throw new Abort("notFound");
@@ -176,7 +182,8 @@ export async function buyHours(
     // hour, its currency and its provider are still usable now. Every other is discarded like a
     // canceled charge: the charge canceled (its checkout closed after the commit) and the purchase
     // deleted. The client row is locked, so two clicks cannot both miss it.
-    const cycle = cycleKey();
+    // The cycle is the current month in the agency's time zone.
+    const cycle = cycleKey(deps.now?.() ?? new Date(), timeZoneOrDefault(brand.timeZone));
     const candidates = await tx
       .select({ charge: charges, purchaseId: hourPurchases.id, priceCents: hourPurchases.priceCents })
       .from(charges)

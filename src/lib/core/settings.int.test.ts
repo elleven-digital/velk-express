@@ -52,23 +52,35 @@ const row = async () => (await db.select().from(agency))[0];
 
 describe("updateAgency", () => {
   it("is forbidden for a collaborator and changes nothing", async () => {
-    const res = await updateAgency(collaborator, { name: "Hacked", currency: "USD", locale: "pt" }, deps());
+    const res = await updateAgency(collaborator, { name: "Hacked", currency: "USD", locale: "pt", timeZone: "Asia/Tokyo" }, deps());
     expect(res).toEqual({ ok: false, error: "forbidden" });
-    expect(await row()).toMatchObject({ name: "Studio Acme", currency: "BRL", locale: "en" });
+    expect(await row()).toMatchObject({ name: "Studio Acme", currency: "BRL", locale: "en", timeZone: "America/Sao_Paulo" });
   });
 
-  it("saves a trimmed name, the currency and the language for the owner", async () => {
-    const res = await updateAgency(owner, { name: "  Nova Agencia ", currency: "EUR", locale: "es" }, deps());
+  it("saves a trimmed name, the currency, the language and the time zone for the owner", async () => {
+    const res = await updateAgency(owner, { name: "  Nova Agencia ", currency: "EUR", locale: "es", timeZone: "Europe/Lisbon" }, deps());
     expect(res.ok).toBe(true);
-    expect(await row()).toMatchObject({ name: "Nova Agencia", currency: "EUR", locale: "es" });
+    expect(await row()).toMatchObject({ name: "Nova Agencia", currency: "EUR", locale: "es", timeZone: "Europe/Lisbon" });
+  });
+
+  it("an existing agency starts in São Paulo", async () => {
+    expect((await row()).timeZone).toBe("America/Sao_Paulo");
+  });
+
+  it("refuses a forged time zone with its own error and stores nothing", async () => {
+    for (const timeZone of ["Mars/Base", "", "+03:00", "america/sao_paulo", "x".repeat(5000)]) {
+      const res = await updateAgency(owner, { name: "Changed", currency: "EUR", locale: "es", timeZone }, deps());
+      expect(res).toEqual({ ok: false, error: "invalidTimeZone" });
+    }
+    expect(await row()).toMatchObject({ name: "Studio Acme", currency: "BRL", timeZone: "America/Sao_Paulo" });
   });
 
   it("rejects an empty or too long name and unknown values", async () => {
     for (const input of [
-      { name: "   ", currency: "BRL", locale: "en" },
-      { name: "x".repeat(121), currency: "BRL", locale: "en" },
-      { name: "Ok", currency: "JPY", locale: "en" },
-      { name: "Ok", currency: "BRL", locale: "fr" },
+      { name: "   ", currency: "BRL", locale: "en", timeZone: "UTC" },
+      { name: "x".repeat(121), currency: "BRL", locale: "en", timeZone: "UTC" },
+      { name: "Ok", currency: "JPY", locale: "en", timeZone: "UTC" },
+      { name: "Ok", currency: "BRL", locale: "fr", timeZone: "UTC" },
     ]) {
       const res = await updateAgency(owner, input as never, deps());
       expect(res).toEqual({ ok: false, error: "invalid" });

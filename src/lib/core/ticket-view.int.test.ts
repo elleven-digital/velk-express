@@ -224,4 +224,13 @@ describe("getTeamTicketView time and hours", () => {
     const pkg = (await getTeamTicketView(collab, id, "en", db, { now }))!.hours;
     expect(pkg).toMatchObject({ mode: "package", usedMinutes: 120, balanceMinutes: -60, totalMinutes: 60 });
   });
+
+  it("reads today and the current cycle in the agency's time zone", async () => {
+    await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
+    await db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, acme.id));
+    const id = await open(acme);
+    const view = await getTeamTicketView(owner, id, "en", db, { now: () => new Date("2026-01-31T23:00:00Z") });
+    expect(view!.today).toBe("2026-02-01");
+    expect(view!.hours).toMatchObject({ cycle: "2026-02" });
+  });
 });

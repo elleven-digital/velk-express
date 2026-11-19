@@ -5,14 +5,15 @@ import { FilterSelect } from "@/components/filter-select";
 import { Flash } from "@/components/flash";
 import { Icon } from "@/components/icons";
 import { Badge, Card, EmptyState, LinkButton, PageHeader, TableShell, tdClasses, thClasses } from "@/components/ui";
+import { getAgency } from "@/lib/agency";
 import { requireTeam } from "@/lib/auth/guards";
 import { chargeSourceHref, chargeSourceKey, chargeStatusMeta, isLiveStatus } from "@/lib/charge-utils";
 import { listClients } from "@/lib/core/clients";
 import { listCharges, type ChargeView } from "@/lib/core/charges";
 import { formatMoment } from "@/lib/format";
-import { CYCLE_TIME_ZONE } from "@/lib/hours";
 import { fmt } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ const STATUSES = ["pending", "active", "past_due", "paid", "canceled"] as const;
 export default async function ChargesPage({ searchParams }: { searchParams: Promise<{ client?: string; status?: string; ok?: string }> }) {
   const sp = await searchParams;
   const me = await requireTeam(["owner", "manager"]);
-  const { t, locale } = await getUserDict();
+  const [{ t, locale }, agency] = await Promise.all([getUserDict(), getAgency()]);
+  // Rendered on the server only: shown in the agency's time zone.
+  const timeZone = agency?.timeZone ?? DEFAULT_TIME_ZONE;
   const owner = me.user.role === "owner";
   const clientList = await listClients(me);
   const clientId = clientList.some((c) => c.id === sp.client) ? sp.client : undefined;
@@ -59,9 +62,9 @@ export default async function ChargesPage({ searchParams }: { searchParams: Prom
             ) : (
               <span>{sourceText}</span>
             )}
-            <span className="tabular">{formatMoment(new Date(c.createdAt), locale, new Date(), CYCLE_TIME_ZONE)}</span>
+            <span className="tabular">{formatMoment(new Date(c.createdAt), locale, new Date(), timeZone)}</span>
             {c.paidAt ? (
-              <span>{fmt(t.charges.paidOn, { date: formatMoment(new Date(c.paidAt), locale, new Date(), CYCLE_TIME_ZONE) })}</span>
+              <span>{fmt(t.charges.paidOn, { date: formatMoment(new Date(c.paidAt), locale, new Date(), timeZone) })}</span>
             ) : null}
           </div>
         </div>
