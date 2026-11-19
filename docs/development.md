@@ -82,7 +82,7 @@ S3_TEST_ACCESS_KEY_ID=minioadmin S3_TEST_SECRET_ACCESS_KEY=minioadmin \
 TEST_DATABASE_URL=postgres://localhost:5432/velk_test npm test
 ```
 
-CI (`.github/workflows/ci.yml`) runs the typecheck, lint and all tests against PostgreSQL and MinIO, and builds the image.
+CI (`.github/workflows/ci.yml`) runs the typecheck, lint and all tests against PostgreSQL and an S3-compatible server (moto), and builds the image.
 
 ## Build and try the image
 
