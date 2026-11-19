@@ -8,7 +8,7 @@ import { db as appDb, agency, files, type Db } from "@/lib/db";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { getProviders, type PaymentProvider, type ProviderName } from "@/lib/payments";
 import { getStorage, newFileKey, storageStatus, type Storage } from "@/lib/storage";
-import { isTimeZone } from "@/lib/time-zone";
+import { canonicalTimeZone } from "@/lib/time-zone";
 import { getLatestRelease, updateCheckEnabled, type Release } from "@/lib/update-check";
 import { APP_VERSION } from "@/lib/version";
 import { fail, ok, type Result } from "./result";
@@ -32,8 +32,8 @@ const agencySchema = z.object({
 });
 
 /**
- * The agency's name, currency, language and time zone. A zone the runtime does not list is
- * "invalidTimeZone" and nothing is saved. A new zone moves only the cycle boundaries from now on:
+ * The agency's name, currency, language and time zone (stored in the runtime's spelling). A zone
+ * the runtime does not accept is "invalidTimeZone" and nothing is saved. A new zone moves only the cycle boundaries from now on:
  * time entries keep their day and purchases their cycle.
  */
 export async function updateAgency(
@@ -44,11 +44,12 @@ export async function updateAgency(
   if (!isOwner(actor)) return fail("forbidden");
   const parsed = agencySchema.safeParse(input);
   if (!parsed.success) return fail("invalid");
-  if (!isTimeZone(input.timeZone)) return fail("invalidTimeZone");
+  const timeZone = canonicalTimeZone(input.timeZone);
+  if (!timeZone) return fail("invalidTimeZone");
   const db = deps.db ?? appDb;
   await db
     .update(agency)
-    .set({ ...parsed.data, timeZone: input.timeZone })
+    .set({ ...parsed.data, timeZone })
     .where(eq(agency.id, 1));
   return ok();
 }

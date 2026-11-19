@@ -17,7 +17,7 @@ export type TimeFormLabels = {
 
 /**
  * "Log time": a collapsed form (time as typed, day, what was done). A refusal comes back with what
- * was typed, so nothing is lost; a success clears the form. `today` is the day in the cycle time
+ * was typed, so nothing is lost; a success clears the form. `today` is the day in the agency's time
  * zone: the default and the latest day the date can take.
  */
 export function TimeForm({

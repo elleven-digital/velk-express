@@ -8,26 +8,38 @@ export const DEFAULT_TIME_ZONE = "America/Sao_Paulo";
 
 let supported: Set<string> | null = null;
 
-/** The IANA names the runtime knows, plus UTC (some runtimes leave it out of the list). */
+/** The IANA names the runtime lists, plus UTC (some runtimes leave it out). Only for the select. */
 function supportedZones(): Set<string> {
   supported ??= new Set(["UTC", ...Intl.supportedValuesOf("timeZone")]);
   return supported;
 }
 
-/** Whether `raw` is an IANA time zone name the runtime supports, spelled exactly as it lists it. */
-export function isTimeZone(raw: string): boolean {
-  if (typeof raw !== "string" || !supportedZones().has(raw)) return false;
+/** An IANA-shaped name: "UTC", "Europe/Lisbon", "America/Argentina/Buenos_Aires", "Etc/GMT+3". No offsets. */
+const ZONE_NAME = /^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+)*$/;
+const MAX_ZONE_LENGTH = 64;
+
+/**
+ * The runtime's own spelling of a time zone name ("Asia/Kolkata" may come back as "Asia/Calcutta"),
+ * or null when it is not a zone the runtime accepts. Not limited to `Intl.supportedValuesOf`, which
+ * lists one spelling per zone and changes between runtime versions: an alias stays valid.
+ */
+export function canonicalTimeZone(raw: string): string | null {
+  if (typeof raw !== "string" || raw.length > MAX_ZONE_LENGTH || !ZONE_NAME.test(raw)) return null;
   try {
-    new Intl.DateTimeFormat("en", { timeZone: raw });
-    return true;
+    return new Intl.DateTimeFormat("en", { timeZone: raw }).resolvedOptions().timeZone;
   } catch {
-    return false;
+    return null;
   }
 }
 
-/** A stored zone when it is still valid, else the default (so a bad value never breaks a page). */
+/** Whether `raw` names a time zone the runtime accepts (see `canonicalTimeZone`). */
+export function isTimeZone(raw: string): boolean {
+  return canonicalTimeZone(raw) !== null;
+}
+
+/** A stored zone in the runtime's spelling while it is still valid, else the default (a bad value never breaks a page). */
 export function timeZoneOrDefault(raw: string | null | undefined): string {
-  return raw && isTimeZone(raw) ? raw : DEFAULT_TIME_ZONE;
+  return (raw && canonicalTimeZone(raw)) || DEFAULT_TIME_ZONE;
 }
 
 export type TimeZoneGroup = { region: string; zones: { value: string; label: string }[] };

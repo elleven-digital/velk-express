@@ -67,8 +67,17 @@ describe("updateAgency", () => {
     expect((await row()).timeZone).toBe("America/Sao_Paulo");
   });
 
+  it("accepts aliases and stores the runtime's own spelling", async () => {
+    const resolved = (zone: string) => new Intl.DateTimeFormat("en", { timeZone: zone }).resolvedOptions().timeZone;
+    for (const timeZone of ["Asia/Kolkata", "Europe/Kyiv", "america/sao_paulo"]) {
+      expect(await updateAgency(owner, { name: "Studio Acme", currency: "BRL", locale: "en", timeZone }, deps())).toEqual({ ok: true, value: undefined });
+      expect((await row()).timeZone).toBe(resolved(timeZone));
+    }
+    expect((await row()).timeZone).toBe("America/Sao_Paulo");
+  });
+
   it("refuses a forged time zone with its own error and stores nothing", async () => {
-    for (const timeZone of ["Mars/Base", "", "+03:00", "america/sao_paulo", "x".repeat(5000)]) {
+    for (const timeZone of ["Mars/Base", "", "+03:00", "x".repeat(5000)]) {
       const res = await updateAgency(owner, { name: "Changed", currency: "EUR", locale: "es", timeZone }, deps());
       expect(res).toEqual({ ok: false, error: "invalidTimeZone" });
     }

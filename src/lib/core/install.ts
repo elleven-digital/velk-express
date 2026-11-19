@@ -6,7 +6,7 @@ import { ensureInstance } from "@/boot/instance";
 import { normalizeAppUrl } from "@/lib/app-url";
 import { hashPassword, passwordProblem } from "@/lib/auth/password";
 import { LOCALES, type Locale } from "@/lib/i18n";
-import { isTimeZone } from "@/lib/time-zone";
+import { canonicalTimeZone } from "@/lib/time-zone";
 import { fail, ok, type Result } from "./result";
 
 export type InstallInput = {
@@ -16,7 +16,7 @@ export type InstallInput = {
   password: string;
   currency: "BRL" | "USD" | "EUR";
   locale: Locale;
-  /** IANA name; one the runtime does not list is "invalidTimeZone". */
+  /** IANA name, stored in the runtime's spelling; one the runtime does not accept is "invalidTimeZone". */
   timeZone: string;
   appUrl: string;
 };
@@ -52,7 +52,8 @@ export async function installAgency(
 ): Promise<Result<{ ownerId: string }>> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return fail("invalid");
-  if (!isTimeZone(input.timeZone)) return fail("invalidTimeZone");
+  const timeZone = canonicalTimeZone(input.timeZone);
+  if (!timeZone) return fail("invalidTimeZone");
   const data = parsed.data;
   const passwordHash = await hashPassword(data.password);
 
@@ -66,7 +67,7 @@ export async function installAgency(
 
       await tx
         .insert(agency)
-        .values({ id: 1, name: data.agencyName, currency: data.currency, locale: data.locale, timeZone: input.timeZone });
+        .values({ id: 1, name: data.agencyName, currency: data.currency, locale: data.locale, timeZone });
       const [owner] = await tx
         .insert(users)
         .values({

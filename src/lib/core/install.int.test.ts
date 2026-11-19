@@ -83,8 +83,14 @@ describe("installAgency", () => {
     expect(await count("instance")).toBe(1);
   });
 
+  it("stores an alias zone in the runtime's own spelling", async () => {
+    expect((await installAgency({ ...valid, timeZone: "Asia/Kolkata" }, db)).ok).toBe(true);
+    const ag = await db.execute<{ time_zone: string }>(sql`SELECT time_zone FROM agency`);
+    expect(ag[0].time_zone).toBe(new Intl.DateTimeFormat("en", { timeZone: "Asia/Kolkata" }).resolvedOptions().timeZone);
+  });
+
   it("refuses a time zone the runtime does not know, with its own error, and creates nothing", async () => {
-    for (const timeZone of ["Mars/Base", "", "+03:00"]) {
+    for (const timeZone of ["Mars/Base", "", "+03:00", "x".repeat(5000)]) {
       expect(await installAgency({ ...valid, timeZone }, db)).toEqual({ ok: false, error: "invalidTimeZone" });
     }
     expect(await count("agency")).toBe(0);
