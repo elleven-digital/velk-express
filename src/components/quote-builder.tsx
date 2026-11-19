@@ -123,7 +123,7 @@ export function QuoteBuilder({
       newSites: i.newSites.map((s, m) => ({ ...s, key: `i${n}s${m}` })),
     })),
   );
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [submitTried, setSubmitTried] = useState(false);
   const seq = useRef(0);
   const nextKey = () => `n${++seq.current}`;
 
@@ -185,17 +185,16 @@ export function QuoteBuilder({
       onSubmit={(e) => {
         e.preventDefault();
         if (items.some(siteGone)) {
-          setLocalError(labels.scSiteGone);
+          setSubmitTried(true);
           return;
         }
-        setLocalError(null);
         const data = new FormData(e.currentTarget);
         startTransition(() => formAction(data));
       }}
     >
       <input type="hidden" name="payload" value={payload} />
       {quoteId ? <input type="hidden" name="quoteId" value={quoteId} /> : null}
-      {localError ? <Callout tone="danger" title={localError} /> : state?.error ? <Callout tone="danger" title={state.error} /> : null}
+      {submitTried && items.some(siteGone) ? <Callout tone="danger" title={labels.scSiteGone} /> : state?.error ? <Callout tone="danger" title={state.error} /> : null}
 
       <Card className="space-y-5 p-6 max-sm:p-4">
         <Field label={labels.colTitle} htmlFor="q-title">

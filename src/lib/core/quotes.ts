@@ -319,9 +319,10 @@ export async function sendQuote(
     if (quote.status === "executed") throw new Abort("quoteExecuted");
     if (quote.status !== "draft" && quote.status !== "sent") throw new Abort("quoteLocked");
     const now = new Date();
+    // A resend changes nothing on the quote: keep `updatedAt`, so pages clients have open do not go stale.
     const [row] = await tx
       .update(quotes)
-      .set({ status: "sent", sentAt: quote.sentAt ?? now, updatedAt: now })
+      .set({ status: "sent", sentAt: quote.sentAt ?? now, ...(quote.status === "draft" ? { updatedAt: now } : {}) })
       .where(eq(quotes.id, quoteId))
       .returning();
     return row;
@@ -366,7 +367,7 @@ export async function archiveQuote(actor: TeamSession, quoteId: string, deps: De
   });
 }
 
-/** Deletes a draft (its items go with it). An executed quote is `quoteExecuted`; any other status is `quoteLocked`. */
+/** Deletes a draft (its items go with it). An executed quote is `quoteExecuted`, a sent one `quoteSent`; any other status is `quoteLocked`. */
 export async function deleteQuote(actor: TeamSession, quoteId: string, deps: Deps = {}): Promise<Result> {
   if (!isOwner(actor)) return fail("forbidden");
   if (!uuid.safeParse(quoteId).success) return fail("notFound");
@@ -374,6 +375,7 @@ export async function deleteQuote(actor: TeamSession, quoteId: string, deps: Dep
     const [quote] = await tx.select({ status: quotes.status }).from(quotes).where(eq(quotes.id, quoteId)).for("update");
     if (!quote) throw new Abort("notFound");
     if (quote.status === "executed") throw new Abort("quoteExecuted");
+    if (quote.status === "sent") throw new Abort("quoteSent");
     if (quote.status !== "draft") throw new Abort("quoteLocked");
     await tx.delete(quotes).where(eq(quotes.id, quoteId));
   });

@@ -335,6 +335,18 @@ describe("quotes", () => {
     expect(await sendQuote(owner, "nope", { db, send })).toEqual({ ok: false, error: "notFound" });
   });
 
+  it("a resend keeps updatedAt; the first send sets it", async () => {
+    const id = await save(prospect());
+    const old = new Date("2026-01-01T00:00:00Z");
+    await db.update(quotes).set({ updatedAt: old }).where(eq(quotes.id, id));
+    expect((await sendQuote(owner, id, { db, send })).ok).toBe(true);
+    const first = (await db.select().from(quotes).where(eq(quotes.id, id)))[0];
+    expect(first.updatedAt.getTime()).toBeGreaterThan(old.getTime());
+    await db.update(quotes).set({ updatedAt: old }).where(eq(quotes.id, id));
+    expect((await sendQuote(owner, id, { db, send })).ok).toBe(true);
+    expect((await db.select().from(quotes).where(eq(quotes.id, id)))[0].updatedAt.getTime()).toBe(old.getTime());
+  });
+
   it("deleteQuote only deletes drafts", async () => {
     const id = await save(prospect());
     expect(await deleteQuote(owner, id, { db })).toEqual({ ok: true, value: undefined });
@@ -344,7 +356,8 @@ describe("quotes", () => {
     for (const status of ["sent", "accepted", "executed", "archived"] as const) {
       const q = await save(prospect());
       await db.update(quotes).set({ status }).where(eq(quotes.id, q));
-      expect(await deleteQuote(owner, q, { db })).toEqual({ ok: false, error: status === "executed" ? "quoteExecuted" : "quoteLocked" });
+      const error = status === "executed" ? "quoteExecuted" : status === "sent" ? "quoteSent" : "quoteLocked";
+      expect(await deleteQuote(owner, q, { db })).toEqual({ ok: false, error });
       expect(await db.select().from(quotes).where(eq(quotes.id, q))).toHaveLength(1);
     }
   });
