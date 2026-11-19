@@ -171,7 +171,7 @@ export default async function ClientHoursPage({
         </Card>
       ) : (
         <>
-          {internal ? (
+          {internal || off ? (
             <StatGrid cols={1} className="mb-6 sm:max-w-64">
               <StatCard
                 label={t.hours.used}
