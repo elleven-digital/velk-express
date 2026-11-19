@@ -1,0 +1,7 @@
+#!/bin/sh
+# Admin CLI. `docker compose exec` runs as root: drop to the node user like the entrypoint does.
+if [ "$(id -u)" = "0" ]; then
+  export HOME=/home/node
+  exec su-exec node node /app/dist/cli.mjs "$@"
+fi
+exec node /app/dist/cli.mjs "$@"

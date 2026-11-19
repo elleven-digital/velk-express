@@ -1,0 +1,12 @@
+# Internal working docs (specs, plans). Never committed.
+.internal/
+.superpowers/
+.dev/
+node_modules
+.next
+dist
+.env*
+!.env.example
+*.tsbuildinfo
+.claude/settings.local.json
+next-env.d.ts

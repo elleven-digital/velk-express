@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+/*
+ * Identity: flat and drawn. Neutral grays, one black primary button, no
+ * shadows, glows or decorative gradients. The same palette for every agency
+ * (the panel proposal, after Vercel's Geist: Geist, white, 1px #ebebeb lines,
+ * 6px corners, text #171717 and secondary #4d4d4d).
+ */
+@theme {
+  /* accent scale */
+  --color-brand: #171717;
+  --color-brand-deep: #383838;
+
+  /* neutrals */
+  --color-ink: #171717;
+  --color-body: #171717;
+  --color-muted: #4d4d4d;
+  --color-line: #ebebeb;
+  --color-line-strong: #c9c9c9;
+  --color-chip: #f2f2f2;
+  /* app canvas behind the cards */
+  --color-paper: #f9f9fa;
+
+  /* Geist's darker shades, readable as text on white */
+  --color-danger: #cb2a2f;
+  --color-danger-soft: #fff0f0;
+  --color-warn: #a35200;
+  --color-warn-soft: #fff6e5;
+  --color-ok-deep: #297a3a;
+  --color-ok-soft: #ebfaeb;
+
+  /* the primary button: black */
+  --color-accent: #171717;
+  --color-accent-hover: #383838;
+  --color-on-accent: #ffffff;
+  --color-focus: oklch(57.61% 0.2508 258.23);
+
+  /* status dots: amber = your turn, blue = with the other side,
+     green = fine, red = needs fixing, gray = done */
+  --color-dot-warn: oklch(78% 0.17 72);
+  --color-dot-info: oklch(57.61% 0.2508 258.23);
+  --color-dot-ok: oklch(64.58% 0.1746 147.27);
+  --color-dot-danger: oklch(62.56% 0.2524 23.03);
+  --color-dot-off: #a8a8a8;
+
+  /* Geist's 6px fields and buttons, 8px boxes */
+  --radius-card: 8px;
+  --radius-field: 6px;
+}
+
+/* the font variables are set on <html> by next/font (see fontVariables in src/lib/fonts.ts) */
+@theme inline {
+  --font-sans: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+}
+
+::selection {
+  background: #dedede;
+  color: var(--color-ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* base type of the app surface (applied to <body>; the root stays at 16px) */
+.ui-app {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-body);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  /* one focus ring */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* fields: a darker gray line and a soft gray halo instead of a second hard line */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: #8f8f8f !important;
+    box-shadow: 0 0 0 3px rgb(0 0 0 / 0.08);
+  }
+
+  /* a field marked invalid stays red while it is being fixed */
+  [aria-invalid="true"]:focus-visible {
+    border-color: var(--color-danger) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 14%, transparent);
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* ---- a message body (sanitized HTML of a ticket message) ---- */
+/* long links and words wrap inside the bubble instead of widening the page */
+.msg-body {
+  overflow-wrap: anywhere;
+}
+.msg-body p {
+  margin: 0 0 0.45em;
+}
+.msg-body p:last-child {
+  margin-bottom: 0;
+}
+.msg-body a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+.msg-body img {
+  max-width: min(100%, 360px);
+  border-radius: 8px;
+  margin: 0.4em 0;
+  display: block;
+}
+.msg-body ul,
+.msg-body ol {
+  padding-left: 1.2em;
+  margin: 0.35em 0;
+}
+.msg-body ul {
+  list-style: disc;
+}
+.msg-body ol {
+  list-style: decimal;
+}
+
+/* ---- tiptap editor ---- */
+/* in a layer so utilities (the composer's compact mode) can override it */
+@layer components {
+  .tiptap {
+    outline: none;
+    min-height: 64px;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 8px 10px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-ink);
+  }
+  .tiptap p {
+    margin: 0 0 0.4em;
+  }
+  .tiptap p:last-child {
+    margin: 0;
+  }
+  .tiptap a {
+    color: var(--color-ink);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .tiptap img {
+    max-width: 280px;
+    border-radius: 8px;
+    margin: 0.3em 0;
+  }
+  .tiptap img.ProseMirror-selectednode {
+    outline: 2px solid var(--color-brand);
+  }
+  .tiptap ul,
+  .tiptap ol {
+    padding-left: 1.2em;
+    margin: 0.3em 0;
+  }
+  .tiptap ul {
+    list-style: disc;
+  }
+  .tiptap ol {
+    list-style: decimal;
+  }
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--color-muted);
+    opacity: 0.85;
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+}
+
+/* ---- a line of facts split by thin rules (MetaLine) ---- */
+/* Each fact draws its rule on the left; the row is pulled 21px left and
+   clipped there, so a fact that wraps starts its line without a rule. */
+.meta {
+  clip-path: inset(-6px -6px -6px -3px);
+}
+.meta > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 2px;
+  margin-left: -21px;
+}
+.meta > div > * {
+  display: inline-flex;
+  align-items: center;
+}
+.meta > div > *::before {
+  content: "";
+  flex: none;
+  width: 1px;
+  height: 12px;
+  margin: 0 10px;
+  background: var(--color-line-strong);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
