@@ -6,7 +6,7 @@ import { providerLabels } from "@/components/charge-section";
 import { CopyButton } from "@/components/link-box";
 import { PurchaseForm } from "@/components/purchase-form";
 import { ControlButton } from "@/components/ticket-controls";
-import { Badge, buttonClasses, Callout, Card, cn, MetaLine, SectionHead, SectionTitle, StatCard, StatGrid } from "@/components/ui";
+import { Badge, buttonClasses, Callout, Card, cn, EmptyState, LinkButton, MetaLine, SectionHead, SectionTitle, StatCard, StatGrid } from "@/components/ui";
 import { isStaff } from "@/lib/access";
 import { getAgency } from "@/lib/agency";
 import { requireTeam } from "@/lib/auth/guards";
@@ -76,15 +76,28 @@ export default async function ClientHoursPage({
   const month = formatCycle(cycle, locale);
   const title = month.charAt(0).toUpperCase() + month.slice(1);
 
+  if (summary.mode === "off") {
+    return (
+      <Card>
+        <EmptyState
+          icon="clock"
+          title={t.hours.offTitle}
+          text={t.hours.offText}
+          action={
+            <LinkButton href={`/admin/clients/${client.id}#support`} variant="secondary" size="sm">
+              {t.hours.offLink}
+            </LinkButton>
+          }
+        />
+      </Card>
+    );
+  }
+
   return (
     <div>
       {internal ? (
         <Callout tone="info" className="mb-6">
           {t.hours.internalOnly}
-        </Callout>
-      ) : summary.mode === "off" ? (
-        <Callout tone="info" className="mb-6">
-          {t.hours.notTracked}
         </Callout>
       ) : null}
 

@@ -69,8 +69,16 @@ export default async function ClientsPage() {
                 <Avatar name={client.name} kind="client" size={32} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-ink">{client.name}</div>
-                  <div className="text-[0.8125rem] text-muted">
+                  <div className="truncate text-[0.8125rem] text-muted">
                     {t.clients.colSites}: {client.siteCount}
+                    {client.supportActive && client.hoursMode === "package" ? (
+                      <>
+                        {" · "}
+                        {formatMinutes(client.includedMinutes)}
+                        {t.clients.perMonth}
+                      </>
+                    ) : null}
+                    {client.supportActive && client.hoursMode === "internal" ? <> · {t.clients.hoursInternalShort}</> : null}
                   </div>
                 </div>
                 <Badge tone={client.supportActive ? "ok" : "muted"}>

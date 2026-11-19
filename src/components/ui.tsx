@@ -82,12 +82,15 @@ export function Button({
 export function Card({
   className,
   children,
+  id,
 }: {
   className?: string;
   children: ReactNode;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "bg-white border border-line rounded-card",
         className

@@ -30,14 +30,16 @@ export function SettingsCard({
   hint,
   children,
   className,
+  id,
 }: {
+  id?: string;
   title: string;
   hint?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <Card className={cn("p-5 sm:p-6", className)}>
+    <Card id={id} className={cn("p-5 sm:p-6 scroll-mt-6", className)}>
       <SectionTitle>{title}</SectionTitle>
       {hint ? <p className="mt-1 max-w-[62ch] text-muted">{hint}</p> : null}
       <div className="mt-5">{children}</div>

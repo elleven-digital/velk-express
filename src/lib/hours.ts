@@ -58,8 +58,10 @@ export function parseDuration(raw: string, opts: { max?: number } = {}): number 
   let m: RegExpExecArray | null;
   if ((m = /^(\d+)$/.exec(text)) || (m = /^(\d+)\s*(?:m|min|mins)$/.exec(text))) {
     minutes = Number(m[1]);
-  } else if ((m = /^(\d+)\s*h\s*(\d{1,2})?\s*(?:m|min|mins)?$/.exec(text))) {
-    const extra = m[2] === undefined ? 0 : Number(m[2]);
+  } else if ((m = /^(\d+)\s*h$/.exec(text))) {
+    minutes = Number(m[1]) * 60;
+  } else if ((m = /^(\d+)\s*h\s*(\d{1,2})\s*(?:m|min|mins)?$/.exec(text))) {
+    const extra = Number(m[2]);
     if (extra > 59) return null;
     minutes = Number(m[1]) * 60 + extra;
   } else if ((m = /^(\d+):([0-5]\d)$/.exec(text))) {
@@ -70,6 +72,19 @@ export function parseDuration(raw: string, opts: { max?: number } = {}): number 
 
   if (minutes === null || !Number.isSafeInteger(minutes) || minutes < 1 || minutes > max) return null;
   return minutes;
+}
+
+/** The most one purchase can register, in minutes. */
+export const MAX_PURCHASE_MINUTES = 100000;
+
+/**
+ * The quantity typed in a purchase of hours, as minutes. A bare number ("10", "1,5") is hours,
+ * because that is what is bought; every other form is read as `parseDuration` does.
+ */
+export function parsePurchaseQuantity(raw: string): number | null {
+  const text = raw.trim();
+  const bare = /^\d+(?:[.,]\d+)?$/.test(text);
+  return parseDuration(bare ? `${text}h` : text, { max: MAX_PURCHASE_MINUTES });
 }
 
 /**

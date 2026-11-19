@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cycleKey, cycleRange, isCycle, minutesToHoursInput, parseDuration, shiftCycle, todayInCycleZone } from "./hours";
+import { cycleKey, cycleRange, isCycle, minutesToHoursInput, parseDuration, parsePurchaseQuantity, shiftCycle, todayInCycleZone } from "./hours";
 
 describe("cycleKey", () => {
   it("uses the given zone at the month boundary", () => {
@@ -75,9 +75,36 @@ describe("parseDuration", () => {
     expect(parseDuration("-5")).toBeNull();
   });
 
+  it("rejects malformed input and reads 1h5 as 1h05", () => {
+    for (const bad of ["1hm", "h30", "1h30m15", "--1", "abc", "1,,5h", "0", "1441"]) {
+      expect(parseDuration(bad), bad).toBeNull();
+    }
+    expect(parseDuration("1h5")).toBe(65);
+    expect(parseDuration("1h30m")).toBe(90);
+    expect(parseDuration("1h 30min")).toBe(90);
+  });
+
   it("takes a custom maximum", () => {
     expect(parseDuration("1441", { max: 100000 })).toBe(1441);
     expect(parseDuration("100001", { max: 100000 })).toBeNull();
+  });
+});
+
+describe("parsePurchaseQuantity", () => {
+  it("reads a bare number as hours and keeps every other form", () => {
+    expect(parsePurchaseQuantity("10")).toBe(600);
+    expect(parsePurchaseQuantity("1,5")).toBe(90);
+    expect(parsePurchaseQuantity("1.5")).toBe(90);
+    expect(parsePurchaseQuantity(" 2 ")).toBe(120);
+    expect(parsePurchaseQuantity("1h30")).toBe(90);
+    expect(parsePurchaseQuantity("45min")).toBe(45);
+    expect(parsePurchaseQuantity("1:30")).toBe(90);
+    expect(parsePurchaseQuantity("0")).toBeNull();
+    expect(parsePurchaseQuantity("abc")).toBeNull();
+    expect(parsePurchaseQuantity("")).toBeNull();
+    expect(parsePurchaseQuantity("1,,5")).toBeNull();
+    expect(parsePurchaseQuantity("1667")).toBeNull();
+    expect(parsePurchaseQuantity("1666h")).toBe(99960);
   });
 });
 

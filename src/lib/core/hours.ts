@@ -6,7 +6,7 @@ import { agencyTimeZone } from "@/lib/agency";
 import type { TeamSession } from "@/lib/auth/session";
 import { charges, clients, db as appDb, hourPurchases, tickets, timeEntries, type Db, type HoursMode } from "@/lib/db";
 import { getDict, type Locale } from "@/lib/i18n";
-import { cycleKey, cycleRange, isCycle, parseDuration, todayInCycleZone } from "@/lib/hours";
+import { cycleKey, cycleRange, isCycle, parseDuration, parsePurchaseQuantity, todayInCycleZone } from "@/lib/hours";
 import { parseMoney } from "@/lib/format";
 import { getClient } from "./clients";
 import { actorKey, resolveActorNames } from "./messages";
@@ -187,7 +187,6 @@ export async function listTicketTime(
 }
 
 /** The longest single purchase, in minutes. */
-const MAX_PURCHASE_MINUTES = 100000;
 
 /** A client the actor may change the hours of: staff only; a missing one is "notFound". */
 async function staffClient(actor: TeamSession, clientId: string, db: Db) {
@@ -208,7 +207,7 @@ export async function addHourPurchase(
   const db = deps.db ?? appDb;
   const client = await staffClient(actor, clientId, db);
   if (!client.ok) return client;
-  const minutes = parseDuration(String(input.duration ?? ""), { max: MAX_PURCHASE_MINUTES });
+  const minutes = parsePurchaseQuantity(String(input.duration ?? ""));
   if (minutes === null) return fail("invalidDuration");
   const cycle = String(input.cycle ?? "");
   if (!isCycle(cycle)) return fail("invalidCycle");

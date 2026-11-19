@@ -261,8 +261,11 @@ describe("hour purchases and the client's cycle", () => {
     }
     expect(await addHourPurchase(o, A.id, { duration: "1h", cycle: "2026-11", price: "abc" }, { db })).toEqual({ ok: false, error: "invalidPrice" });
     expect(await db.select().from(hourPurchases)).toEqual([]);
-    // more than a day is fine for a purchase
-    expect((await addHourPurchase(o, A.id, { duration: "100000", cycle: "2026-11" }, { db })).ok).toBe(true);
+    // more than a day is fine for a purchase, and a bare number is hours
+    expect((await addHourPurchase(o, A.id, { duration: "1666h", cycle: "2026-11" }, { db })).ok).toBe(true);
+    expect(await addHourPurchase(o, A.id, { duration: "1667", cycle: "2026-11" }, { db })).toEqual({ ok: false, error: "invalidDuration" });
+    await addHourPurchase(o, A.id, { duration: "2", cycle: "2026-11" }, { db });
+    expect((await db.select().from(hourPurchases)).map((r) => r.minutes).sort((a, b) => a - b)).toEqual([120, 99960]);
   });
 
   it("limits the purchase note to 500 characters", async () => {
@@ -284,7 +287,7 @@ describe("hour purchases and the client's cycle", () => {
 
   it("deleting a purchase removes it from the balance; a pending one cannot be deleted", async () => {
     const o = await owner();
-    const made = await addHourPurchase(o, A.id, { duration: "90", cycle: "2026-11" }, { db });
+    const made = await addHourPurchase(o, A.id, { duration: "90min", cycle: "2026-11" }, { db });
     if (!made.ok) throw new Error(made.error);
     const [pending] = await db.insert(hourPurchases).values({ clientId: A.id, minutes: 30, cycle: "2026-11", pending: true }).returning();
     const [others] = await db.insert(hourPurchases).values({ clientId: B.id, minutes: 30, cycle: "2026-11" }).returning();

@@ -60,7 +60,7 @@ export default async function PanelHome() {
               : {t.panel.stepQuotes}
             </li>
           ) : null}
-          {manager ? (
+          {owner || manager ? (
             <li>
               <Link href="/admin/charges" className={link}>
                 {t.panel.navCharges}

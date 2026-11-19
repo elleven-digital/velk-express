@@ -150,7 +150,7 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
           company={{ name: client.name, email: client.email, phone: client.phone, notes: client.notes }}
         />
       </SettingsCard>
-      <SettingsCard title={t.clients.supportSection} hint={t.clients.supportHint}>
+      <SettingsCard id="support" title={t.clients.supportSection} hint={t.clients.supportHint}>
         <SupportForm
           action={updateSupportAction}
           labels={t.clients}
