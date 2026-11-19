@@ -1,5 +1,5 @@
-// Development helper: applies pending migrations to DATABASE_URL with the same code the boot uses,
-// without the pre-migration backup. Production containers migrate at boot (dist/boot.mjs).
+// Development helper: applies pending migrations to DATABASE_URL with the same code the boot uses.
+// Production containers migrate at boot (dist/boot.mjs).
 import path from "node:path";
 import { createDb } from "@/lib/db/client";
 import { countPendingMigrations, runMigrations } from "@/boot/migrations";

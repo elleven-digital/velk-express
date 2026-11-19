@@ -101,4 +101,4 @@ docker compose pull app
 docker compose up -d
 ```
 
-The app backs up the database before it applies new migrations. See [updating](updating.md) for versions and tags, and [backup and restore](backup-and-restore.md) for where backups are and how to restore them.
+Back up the database before you update. See [updating](updating.md) for versions and tags, and [backup and restore](backup-and-restore.md) for where the daily backups are and how to restore them.

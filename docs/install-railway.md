@@ -8,7 +8,7 @@ Railway's interface changes over time. Where this guide describes a step by what
 
 - A **Postgres** service (Railway's PostgreSQL).
 - A **Velk Express** service from the image `ghcr.io/elleven-digital/velk-express:0`.
-- A **volume** mounted at `/data` on the Velk Express service, for uploaded files and pre-migration backups.
+- A **volume** mounted at `/data` on the Velk Express service, for uploaded files.
 - A public domain for the Velk Express service.
 
 ## With the template
@@ -59,8 +59,13 @@ Then check **Settings → Installation**.
 |---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
 | `APP_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}`, or `https://` plus your own domain |
+| `PORT` | `3000` |
 
-E-mail, S3 storage and payments are optional. See [configuration](configuration.md). On Railway it is worth setting up S3 storage: the pre-migration backups then go to your bucket, where they are easy to download, instead of the volume.
+E-mail, S3 storage and payments are optional. See [configuration](configuration.md).
+
+## Backups
+
+Velk Express does not back itself up. Turn on scheduled backups in the Postgres service's backup settings right after the install, and take one before every update. See [backup and restore](backup-and-restore.md).
 
 ## Your own domain
 

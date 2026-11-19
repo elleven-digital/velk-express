@@ -13,7 +13,7 @@ The agency's time zone (it decides where the hours month starts and what "today"
 | `DATABASE_URL` | Yes | none | PostgreSQL connection string, for example `postgres://velk:password@db:5432/velk`. PostgreSQL 17 or newer. |
 | `APP_URL` | No | detected at install | Public address, for example `https://panel.example.com`. Used in invite and password links, e-mails, payment return pages and webhook addresses. When set, it always wins and the address in Settings is locked. Only the origin is kept (scheme, host and port); a value that is not an `http` or `https` URL is ignored with a warning in the log. |
 | `SECRET_KEY` | No | generated | Reserved for signing features. Generated on the first start and stored in the database; set it only to override that value. |
-| `DATA_DIR` | No | `/data` | Folder for uploaded files (`DATA_DIR/files`) and pre-migration backups (`DATA_DIR/backups`) when S3 is not set. Must be persistent and writable. |
+| `DATA_DIR` | No | `/data` | Folder for uploaded files (`DATA_DIR/files`) when S3 is not set. Must be persistent and writable. |
 | `PORT` | No | `3000` | Port the app listens on. |
 | `S3_ENDPOINT` | No | none | S3-compatible endpoint, for example `https://<account>.r2.cloudflarestorage.com`. |
 | `S3_REGION` | No | none | Region, for example `us-east-1`, or `auto` for Cloudflare R2. |
@@ -30,9 +30,8 @@ The agency's time zone (it decides where the hours month starts and what "today"
 | `MERCADOPAGO_ACCESS_TOKEN` | No | none | Your Mercado Pago access token. With `MERCADOPAGO_WEBHOOK_SECRET`, turns Mercado Pago on. |
 | `MERCADOPAGO_WEBHOOK_SECRET` | No | none | The secret signature of your Mercado Pago webhooks. |
 | `UPDATE_CHECK` | No | `true` | Checks GitHub for a newer release, at most every 12 hours, when the owner or a manager opens the panel. Set `false` to turn it off. |
-| `SKIP_PRE_MIGRATION_BACKUP` | No | `false` | With `true`, migrations run without the backup taken before them. See [updating](updating.md). |
 
-`true` and `false` are the only values the two switches accept; anything else falls back to the default.
+`true` and `false` are the only values `UPDATE_CHECK` accepts; anything else falls back to the default.
 
 The Docker Compose stack also reads `DOMAIN`, `POSTGRES_PASSWORD` and `VELK_IMAGE` from its `.env` (see [Docker Compose](install-docker-compose.md)). The app itself does not use them.
 
@@ -69,7 +68,7 @@ Use a sender address on a domain you have set up with your provider (SPF and DKI
 
 By default, uploaded files (ticket attachments, logos) go to `DATA_DIR/files` on the app's disk. Keep `DATA_DIR` on a persistent volume.
 
-With all five `S3_*` variables set, files go to an S3-compatible bucket instead (AWS S3, Cloudflare R2, Backblaze B2, MinIO and others). The app uses path-style addresses, which these services accept. The backup taken before migrations also goes to the bucket, under `backups/`.
+With all five `S3_*` variables set, files go to an S3-compatible bucket instead (AWS S3, Cloudflare R2, Backblaze B2, MinIO and others). The app uses path-style addresses, which these services accept.
 
 Switching between disk and S3 does not move existing files. Decide before you start using the panel, or copy the files yourself.
 

@@ -1,16 +1,17 @@
 # Updating
 
-Updating Velk Express means running a newer image and restarting. When the app starts, it:
+**Back up the database before every update** (see [backup and restore](backup-and-restore.md)). Velk Express does not back itself up.
+
+Updating means running a newer image and restarting. When the app starts, it:
 
 1. waits for the database;
-2. if the new version has database changes, backs up the database (see [backup and restore](backup-and-restore.md#backup-before-each-migration-all-platforms));
-3. applies the changes (migrations);
-4. starts.
+2. applies the new version's database changes (migrations), if there are any;
+3. starts.
 
-If the backup fails, nothing is migrated and the app does not start; the log says why. If a migration fails, the app does not start, and the log shows the error and where the backup is:
+Pending migrations run in a single transaction. If one fails, none of them is kept, the database is left as it was, and the app does not start. The log says why:
 
 ```
-[boot] failed: Migration failed: <reason>. A backup taken before the migration is at /data/backups/pre-migration-<date-and-time>.dump.
+[boot] failed: Migration failed: <reason>. The database was left unchanged; go back to the previous version and report the error.
 ```
 
 ## When there is a new version
@@ -27,13 +28,15 @@ The image is `ghcr.io/elleven-digital/velk-express`. Each release `X.Y.Z` is pub
 | `0.1` | the newest `0.1.x` release |
 | `0.1.0` | exactly that release |
 
-The guides use `:0`, so pulling the image again gets the newest release with the same major version. A new major version (for example `1`) can need steps described in its release notes; you move to it by changing the tag yourself. Pin an exact version (`:0.1.0`) if you want to decide every update.
+The guides use `:0`, so pulling the image again gets the newest release with the same major version. A new major version (for example `1`) can need steps described in its release notes; you move to it by changing the tag yourself. With `:0`, anything that pulls the image again (a redeploy, a restart on some platforms, an automatic update) can bring a new release and its migrations. Pin an exact version (`:0.1.0`) if you want every update to be a step you take, after a backup.
 
 ## How to update on each platform
 
+Take a backup first, whatever the platform.
+
 ### Docker Compose and Hostinger VPS
 
-From the folder with `docker-compose.yml`:
+From the folder with `docker-compose.yml`, after a backup (`docker compose exec -T db pg_dump -U velk velk | gzip > velk-$(date +%F-%H%M).sql.gz`):
 
 ```sh
 docker compose pull app
@@ -64,20 +67,12 @@ PikaPods updates pods to new releases. Check the pod's settings for its update o
 
 ## Going back to an earlier version
 
-There is no in-place downgrade: an older version cannot run on a database that a newer version has already migrated. To go back, restore the backup taken before the migration and run the previous image tag:
+If the update failed while migrating, the database was not changed: run the previous version's exact tag, for example `ghcr.io/elleven-digital/velk-express:0.1.0`.
+
+If the new version started and you still want to go back, there is no in-place downgrade: an older version cannot run on a database that a newer version has already migrated. To go back:
 
 1. stop the app;
-2. restore the backup taken before the migration (see [restoring a pre-migration backup](backup-and-restore.md#from-a-pre-migration-backup-dump));
-3. run the previous version's exact tag, for example `ghcr.io/elleven-digital/velk-express:0.1.0`.
+2. restore the backup you took before the update (see [restoring](backup-and-restore.md#restoring));
+3. run the previous version's exact tag.
 
-Then report the problem, with the log, on GitHub.
-
-## Skipping the pre-migration backup
-
-The backup needs a writable `DATA_DIR` (or S3). If you have neither, the update stops with:
-
-```
-[boot] failed: A pre-migration backup is required but /data/backups is not writable. Mount a writable DATA_DIR, configure S3, or set SKIP_PRE_MIGRATION_BACKUP=true.
-```
-
-Fix the storage if you can. Otherwise, take a backup another way, then set `SKIP_PRE_MIGRATION_BACKUP=true` for this update and remove it afterwards. Without a backup there is no way back if a migration fails.
+Anything written after that backup is lost. Then report the problem, with the log, on GitHub.

@@ -19,10 +19,7 @@ LABEL org.opencontainers.image.source="https://github.com/elleven-digital/velk-e
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.title="Velk Express" \
       org.opencontainers.image.description="Self-hosted, open-source support panel for web agencies: client requests, tasks and communication in one place."
-# PostgreSQL client tools for the pre-migration backup. Version: 18 (postgresql18-client)
-# (the newest Alpine package; pg_dump must be at least the server's major, and the
-# compose stack runs postgres:17).
-RUN apk add --no-cache tini su-exec postgresql18-client \
+RUN apk add --no-cache tini su-exec \
  && mkdir -p /data && chown node:node /data
 WORKDIR /app
 ENV NODE_ENV=production \

@@ -15,6 +15,6 @@ describe("assertSafeKey", () => {
 
   it("accepts regular keys, including ISO timestamps", () => {
     expect(() => assertSafeKey("logos/2026/11/abc")).not.toThrow();
-    expect(() => assertSafeKey("backups/pre-migration-2026-11-18T10:00:00.000Z.dump")).not.toThrow();
+    expect(() => assertSafeKey("exports/report-2026-11-18T10:00:00.000Z.csv")).not.toThrow();
   });
 });

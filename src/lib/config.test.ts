@@ -20,7 +20,6 @@ describe("readConfig", () => {
     expect(c.stripe).toBeNull();
     expect(c.mercadoPago).toBeNull();
     expect(c.updateCheck).toBe(true);
-    expect(c.skipPreMigrationBackup).toBe(false);
     expect(c.warnings).toEqual([]);
   });
 
@@ -94,8 +93,6 @@ describe("readConfig", () => {
     expect(readConfig({ ...base, UPDATE_CHECK: "false" }).updateCheck).toBe(false);
     expect(readConfig({ ...base, UPDATE_CHECK: "FALSE" }).updateCheck).toBe(false);
     expect(readConfig({ ...base, UPDATE_CHECK: "0" }).updateCheck).toBe(true);
-    expect(readConfig({ ...base, SKIP_PRE_MIGRATION_BACKUP: "true" }).skipPreMigrationBackup).toBe(true);
-    expect(readConfig({ ...base, SKIP_PRE_MIGRATION_BACKUP: "yes" }).skipPreMigrationBackup).toBe(false);
   });
 
   it("treats empty strings (as passed by docker compose) like unset variables", () => {
@@ -103,7 +100,7 @@ describe("readConfig", () => {
       [
         "APP_URL", "SECRET_KEY", "S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
         "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
-        "MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET", "UPDATE_CHECK", "SKIP_PRE_MIGRATION_BACKUP",
+        "MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET", "UPDATE_CHECK",
       ].map((k) => [k, ""]),
     );
     const c = readConfig({ ...base, ...empty });

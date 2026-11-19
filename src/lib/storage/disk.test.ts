@@ -57,7 +57,7 @@ describe("diskStorage", () => {
 
   it("accepts ISO timestamps in keys", async () => {
     const s = diskStorage(root);
-    const key = "backups/pre-migration-2026-11-18T10:00:00.000Z.dump";
+    const key = "exports/report-2026-11-18T10:00:00.000Z.csv";
     await s.put(key, Buffer.from("d"), "application/octet-stream");
     expect(await s.get(key)).not.toBeNull();
   });

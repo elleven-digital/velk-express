@@ -45,7 +45,7 @@ Velk Express is a Next.js app (TypeScript, Drizzle ORM, PostgreSQL). This page c
 
    Open `http://localhost:3000` and finish the install screen.
 
-In development, migrations are applied with `npm run db:migrate`; there is no pre-migration backup. The production image migrates on its own when it starts.
+In development, migrations are applied with `npm run db:migrate`. The production image migrates on its own when it starts.
 
 ## Changing the database schema
 

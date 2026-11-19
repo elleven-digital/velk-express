@@ -24,7 +24,7 @@ PikaPods only runs apps from its catalog. If Velk Express is not listed there ye
 
 Whatever the recipe looks like, these must hold:
 
-- **Persistent storage at `/data`.** Uploaded files and the backups taken before migrations go to `/data` (`DATA_DIR`). If the pod's persistent folder is mounted elsewhere, set `DATA_DIR` to that path. If the folder is not persistent, files are lost on restart; if it is not writable, Settings → Installation shows file storage as "not writable".
+- **Persistent storage at `/data`.** Uploaded files go to `/data` (`DATA_DIR`). If the pod's persistent folder is mounted elsewhere, set `DATA_DIR` to that path. If the folder is not persistent, files are lost on restart; if it is not writable, Settings → Installation shows file storage as "not writable".
 - **`APP_URL`** set to the pod's public address with `https://`, for example `https://your-pod.pikapod.net` or your own domain. It is used in e-mail links and payment webhooks. Without it, the install screen asks you to confirm the address it detected.
 - **`DATABASE_URL`** pointing to a PostgreSQL 17 or newer database.
 
@@ -36,4 +36,4 @@ PikaPods serves the pod over HTTPS. If you use your own domain, follow PikaPods'
 
 ## Updating
 
-PikaPods updates pods to new releases of the app. A new release backs up the database before migrating; see [updating](updating.md) and [backup and restore](backup-and-restore.md).
+PikaPods updates pods to new releases of the app, so keep the pod's backups on. See [updating](updating.md) and [backup and restore](backup-and-restore.md).

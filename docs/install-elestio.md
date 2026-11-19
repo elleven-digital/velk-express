@@ -10,7 +10,7 @@ Elestio's interface changes over time. Where this guide describes a step by what
 ## What will be created
 
 - A service with two containers: `app` (Velk Express) and `db` (PostgreSQL 17).
-- Two folders inside the service: `./data` (the app's files and pre-migration backups) and `./postgres` (the database). Elestio's own backups cover folders inside the service.
+- Two folders inside the service: `./data` (the app's files) and `./postgres` (the database). Elestio's own backups cover folders inside the service.
 - An address with HTTPS from Elestio's proxy.
 
 ## From the catalog

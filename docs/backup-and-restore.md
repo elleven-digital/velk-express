@@ -6,7 +6,17 @@ What to keep safe:
 - **Uploaded files.** In `DATA_DIR/files` (default `/data/files`) on disk, or in your S3 bucket.
 - **Your variables** (`.env` or your platform's variables), especially the payment and SMTP secrets.
 
-## The backups Velk Express makes
+## Turn on backups before you use the panel
+
+Velk Express does not back itself up, like most self-hosted apps: backups are your hosting's job. Turn them on right after the install, and take one before every update (see [updating](updating.md)).
+
+| Where it runs | Database backups |
+|---|---|
+| Docker Compose, Hostinger VPS | The stack's `backup` container, described below. A VPS snapshot from your provider is a good second copy. |
+| Railway | Turn on scheduled backups in the Postgres service's backup settings (daily, plus weekly if you want a longer history). |
+| Elestio | Elestio's automatic backups of the service. |
+| PikaPods | PikaPods' own backups of the pod. |
+| Anything else | Schedule `pg_dump` yourself, and keep the copies off the database server. |
 
 ### Daily database dumps (Docker Compose)
 
@@ -29,20 +39,11 @@ Copy one off the server regularly: a backup on the same disk does not survive th
 docker compose exec -T backup cat /backups/daily/velk-latest.sql.gz > velk-$(date +%F).sql.gz
 ```
 
-On other platforms, use the platform's database backups (Railway, Elestio and PikaPods have their own), or schedule `pg_dump` yourself.
+To take one right now, for example before an update:
 
-### Backup before each migration (all platforms)
-
-When a new version brings database changes, the app dumps the whole database **before** it migrates. If the dump fails, the app does not migrate and does not start, and the log says why.
-
-- Without S3, the dump goes to `DATA_DIR/backups/pre-migration-<date-and-time>.dump` (default `/data/backups`).
-- With S3, it goes to your bucket as `backups/pre-migration-<date-and-time>.dump`.
-- A brand-new install has nothing to back up, so no dump is made.
-- The log shows where it went: `[boot] pre-migration backup saved to ...`.
-
-These files are made with `pg_dump --format=custom` from PostgreSQL 18. Restore them with `pg_restore` **18 or newer**; older versions cannot read them. They are not deleted automatically: remove old ones yourself once you no longer need them.
-
-`SKIP_PRE_MIGRATION_BACKUP=true` turns this backup off. Use it only if you have no writable place for the dump and you have another, recent backup.
+```sh
+docker compose exec -T db pg_dump -U velk velk | gzip > velk-$(date +%F-%H%M).sql.gz
+```
 
 ### Uploaded files
 
@@ -71,54 +72,25 @@ docker compose start app
 
 To restore an older day, replace `velk-latest.sql.gz` with that file's name from `docker compose exec backup ls /backups/daily`.
 
-### From a pre-migration backup (`.dump`)
+To go back to the version you ran before an update, restore the backup you took before it, then pin that version in `.env` (for example `VELK_IMAGE=ghcr.io/elleven-digital/velk-express:0.1.0`) and run `docker compose up -d`. If you start the newer version on the restored database, it simply migrates again.
 
-Use this to go back to the version you ran before an update (see [updating](updating.md)): restore the dump, then run the **previous** version of the image. If you start the new version on the restored database, it simply migrates again.
+To restore a dump you copied off the server instead, replace the third command with:
 
-1. Find the file name in the log line `pre-migration backup saved to ...`, or list them:
-
-   ```sh
-   docker compose run --rm --no-deps --entrypoint ls app -l /data/backups
-   ```
-
-2. Stop the app and empty the database:
-
-   ```sh
-   docker compose stop app
-   docker compose exec db psql -U velk -d postgres -c 'DROP DATABASE velk WITH (FORCE)' -c 'CREATE DATABASE velk OWNER velk'
-   ```
-
-3. Restore with the `pg_restore` 18 that ships in the app image. The `app` service already has `DATABASE_URL`, so no password is typed. Replace `<file>` with the file name:
-
-   ```sh
-   docker compose run --rm --no-deps --entrypoint sh app -c \
-     'pg_restore --no-owner --exit-on-error --dbname="$DATABASE_URL" /data/backups/<file>'
-   ```
-
-4. Pin the previous version in `.env`, for example `VELK_IMAGE=ghcr.io/elleven-digital/velk-express:0.1.0`, then start it:
-
-   ```sh
-   docker compose up -d
-   ```
+```sh
+gunzip -c velk-<date>.sql.gz | docker compose exec -T db psql -U velk -d velk -v ON_ERROR_STOP=1
+```
 
 ### On other platforms
 
-You need `pg_restore` 18 or newer on your computer, or Docker. Download the `.dump` file (from your bucket, or from the `/data/backups` folder of the app's volume), stop the app, and run, with your database's connection string:
+Use your platform's restore option for the database. Then start the version of the app that matches the backup.
+
+To restore a dump made with `pg_dump` yourself, stop the app and empty the database first, with your database's connection string:
 
 ```sh
 psql "$DATABASE_URL" -c 'DROP SCHEMA IF EXISTS drizzle CASCADE' -c 'DROP SCHEMA public CASCADE' -c 'CREATE SCHEMA public'
-pg_restore --no-owner --exit-on-error --dbname="$DATABASE_URL" pre-migration-<date-and-time>.dump
 ```
 
-The first command empties the database: the `public` schema holds the data and the `drizzle` schema records which migrations ran. Without a local `pg_restore` 18, run it from Docker:
-
-```sh
-docker run --rm -v "$PWD:/backup" postgres:18 pg_restore --no-owner --exit-on-error --dbname="$DATABASE_URL" /backup/pre-migration-<date-and-time>.dump
-```
-
-The connection string must be reachable from inside that container: use the database's public connection string. For a database on the same machine, add `--network host` to `docker run` (Linux), or use `host.docker.internal` as the host in the connection string (Docker Desktop).
-
-Then start the version of the app that matches the backup.
+The `public` schema holds the data and the `drizzle` schema records which migrations ran. Then load the dump: a plain SQL file with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f <file>.sql`, or a custom-format file (`pg_dump --format=custom`) with `pg_restore --no-owner --exit-on-error --dbname="$DATABASE_URL" <file>.dump`. Use client tools at least as new as the version that made the dump.
 
 ### Files
 

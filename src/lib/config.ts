@@ -23,7 +23,6 @@ export type AppConfig = {
   stripe: { secretKey: string; webhookSecret: string } | null;
   mercadoPago: { accessToken: string; webhookSecret: string } | null;
   updateCheck: boolean;
-  skipPreMigrationBackup: boolean;
   warnings: string[];
 };
 
@@ -132,7 +131,6 @@ export function readConfig(env: Env): AppConfig {
     stripe: st && { secretKey: st.STRIPE_SECRET_KEY, webhookSecret: st.STRIPE_WEBHOOK_SECRET },
     mercadoPago: mp && { accessToken: mp.MERCADOPAGO_ACCESS_TOKEN, webhookSecret: mp.MERCADOPAGO_WEBHOOK_SECRET },
     updateCheck: bool(env, "UPDATE_CHECK", true),
-    skipPreMigrationBackup: bool(env, "SKIP_PRE_MIGRATION_BACKUP", false),
     warnings,
   };
 }

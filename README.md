@@ -44,7 +44,7 @@ Pick the guide for where you want to run it:
 3. Set up e-mail (SMTP) if you want invites and notifications sent by e-mail. Without it, invite and password links are shown in the panel for you to copy.
 4. Invite your team, add clients and invite them to the portal.
 5. To take payments, follow the [payments guide](docs/payments.md).
-6. Make sure backups work: [backup and restore](docs/backup-and-restore.md).
+6. Turn on your hosting's database backups: Velk Express does not back itself up. See [backup and restore](docs/backup-and-restore.md).
 
 ## Documentation
 

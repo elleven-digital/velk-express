@@ -4,16 +4,18 @@ import { migrationFailureMessage } from "./migrations";
 const url = "postgres://velk:s3cret@db.example:5432/velk";
 
 describe("migrationFailureMessage", () => {
-  it("includes the backup location", () => {
-    const msg = migrationFailureMessage(new Error("syntax error"), url, { location: "/data/backups/x.dump" });
-    expect(msg).toBe("Migration failed: syntax error. A backup taken before the migration is at /data/backups/x.dump.");
+  it("says the database was left unchanged", () => {
+    expect(migrationFailureMessage(new Error("syntax error"), url)).toBe(
+      "Migration failed: syntax error. The database was left unchanged; go back to the previous version and report the error.",
+    );
   });
-  it("says explicitly when no backup was taken", () => {
-    expect(migrationFailureMessage(new Error("boom"), url, { none: "empty database" })).toContain("No backup was taken (empty database).");
-    expect(migrationFailureMessage("boom", url, { none: "SKIP_PRE_MIGRATION_BACKUP=true" })).toContain("(SKIP_PRE_MIGRATION_BACKUP=true)");
+  it("shows the database error that drizzle wraps", () => {
+    const wrapped = new Error("Failed query: ALTER TABLE x\nparams:", { cause: new Error('column "y" already exists') });
+    expect(migrationFailureMessage(wrapped, url)).toContain('Migration failed: column "y" already exists.');
   });
-  it("never leaks the password", () => {
-    const msg = migrationFailureMessage(new Error(`could not connect to ${url} (password s3cret)`), url, { none: "empty database" });
+  it("never leaks the password or the URL", () => {
+    const msg = migrationFailureMessage(new Error(`could not connect to ${url} (password s3cret)`), url);
     expect(msg).not.toContain("s3cret");
+    expect(msg).toContain("<database url>");
   });
 });
