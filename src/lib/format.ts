@@ -82,11 +82,13 @@ export function formatBytes(bytes: number, locale: Locale): string {
  * `timeZone` is an IANA name; left out, the runtime's zone (the browser's, in client components).
  */
 export function formatMoment(at: Date, locale: Locale, now: Date = new Date(), timeZone?: string): string {
+  // The year is read in the same zone the moment is shown in, not the runtime's.
+  const yearIn = (d: Date) => new Intl.DateTimeFormat("en", { ...(timeZone ? { timeZone } : {}), year: "numeric" }).format(d);
   return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     ...(timeZone ? { timeZone } : {}),
     day: "numeric",
     month: "short",
-    ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    ...(yearIn(at) === yearIn(now) ? {} : { year: "numeric" }),
     hour: "2-digit",
     minute: "2-digit",
   }).format(at);

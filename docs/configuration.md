@@ -4,6 +4,8 @@ Velk Express is configured with environment variables. Integration secrets (SMTP
 
 Change a variable, then restart the app for it to take effect.
 
+The agency's time zone (it decides where the hours month starts and what "today" is) is not a variable: set it on the install screen and change it later in **Settings → Agency**. The `TZ` environment variable has no effect on it.
+
 ## All variables
 
 | Variable | Required | Default | What it does |

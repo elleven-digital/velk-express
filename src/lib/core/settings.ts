@@ -33,8 +33,8 @@ const agencySchema = z.object({
 
 /**
  * The agency's name, currency, language and time zone (stored in the runtime's spelling). A zone
- * the runtime does not accept is "invalidTimeZone" and nothing is saved. A new zone moves only the cycle boundaries from now on:
- * time entries keep their day and purchases their cycle.
+ * the runtime does not accept is "invalidTimeZone" and nothing is saved. A new zone moves only the
+ * cycle boundaries from now on: time entries keep their day and purchases their cycle.
  */
 export async function updateAgency(
   actor: TeamSession,

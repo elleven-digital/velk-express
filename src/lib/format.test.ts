@@ -87,6 +87,14 @@ describe("formatMoment", () => {
     expect(formatMoment(new Date(2026, 9, 3, 9, 5), "en", now)).not.toContain("2026");
     expect(formatMoment(new Date(2025, 9, 3, 9, 5), "en", now)).toContain("2025");
   });
+
+  it("decides the year in the given zone, not the runtime's", () => {
+    // 2026-01-01 02:00 UTC is still Dec 31, 2025 in Sao Paulo (UTC-3).
+    const at = new Date("2026-01-01T02:00:00Z");
+    const now = new Date("2026-06-15T12:00:00Z");
+    expect(formatMoment(at, "en", now, "UTC")).not.toContain("2026");
+    expect(formatMoment(at, "en", now, "America/Sao_Paulo")).toContain("2025");
+  });
 });
 
 describe("formatMinutes", () => {

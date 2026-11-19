@@ -63,7 +63,7 @@ This guide runs Velk Express on any Linux server with Docker. It uses the files 
 
    It waits for the database, applies migrations and prints `[boot] ready`. Press Ctrl+C to stop following the logs.
 
-6. **Open `https://panel.example.com` and finish the install screen right away.** It asks for the agency name, your name, e-mail and password, the public address, the currency and the language. Until someone does this, the install screen is open to anyone who can reach the address.
+6. **Open `https://panel.example.com` and finish the install screen right away.** It asks for the agency name, your name, e-mail and password, the public address, the currency, the language and the time zone. Until someone does this, the install screen is open to anyone who can reach the address.
 
 7. Check **Settings → Installation**.
 

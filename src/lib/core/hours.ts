@@ -186,8 +186,6 @@ export async function listTicketTime(
   return ok({ entries, totalMinutes: entries.reduce((sum, e) => sum + e.minutes, 0) });
 }
 
-/** The longest single purchase, in minutes. */
-
 /** A client the actor may change the hours of: staff only; a missing one is "notFound". */
 async function staffClient(actor: TeamSession, clientId: string, db: Db) {
   if (!isStaff(actor.user)) return fail("forbidden");
