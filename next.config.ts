@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { AUTHORIZE_PAGE_HEADERS } from "./src/lib/oauth/page-headers";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -7,6 +8,9 @@ const nextConfig: NextConfig = {
     // Ticket attachments never go through a server action: they use POST /api/upload,
     // which the proxy does not see, so proxyClientMaxBodySize does not apply to them.
     serverActions: { bodySizeLimit: "2100kb" },
+  },
+  async headers() {
+    return [{ source: "/oauth/authorize", headers: AUTHORIZE_PAGE_HEADERS }];
   },
 };
 
