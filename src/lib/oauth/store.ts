@@ -341,6 +341,10 @@ export type VerifiedAccess = {
   /** The app's public client_id. */
   clientId: string;
   clientName: string;
+  /** The resource the connection was granted for (the connector URL). */
+  resource: string;
+  /** When this access token stops working. */
+  expiresAt: Date;
 };
 
 /**
@@ -399,6 +403,8 @@ export async function verifyAccessToken(
     connectionId: found.connection.id,
     clientId: found.app.clientId,
     clientName: found.app.name,
+    resource: found.connection.resource,
+    expiresAt: found.token.accessExpiresAt,
   };
 }
 

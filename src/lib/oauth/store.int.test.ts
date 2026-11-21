@@ -232,6 +232,8 @@ describe("access token", () => {
       connectionId,
       clientId: client.clientId,
       clientName: "Claude",
+      resource: RESOURCE,
+      expiresAt: later(60 * 60_000),
     });
   });
 

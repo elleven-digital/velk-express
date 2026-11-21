@@ -962,4 +962,11 @@ statusClosed: "Concluído",
     badRedirect: "O endereço de retorno não é um dos que este aplicativo informou. Volte a ele e tente conectar de novo.",
     tooMany: "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
   },
+  mcp: {
+    failed: "Não foi possível concluir agora. Tente de novo em instantes.",
+    rateLimited: "Muitos pedidos seguidos. Espere um minuto.",
+    noAccess: "Esta conta não faz mais parte da equipe da agência.",
+    staffOnly: "Só donos e gestores podem fazer isso.",
+    ownerOnly: "Só os donos da agência podem fazer isso.",
+  },
 };

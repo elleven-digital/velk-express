@@ -960,4 +960,11 @@ statusClosed: "Closed",
     badRedirect: "The return address isn't one this app declared. Go back to it and try connecting again.",
     tooMany: "Too many attempts in a row. Wait a minute and try again.",
   },
+  mcp: {
+    failed: "That couldn't be done right now. Try again in a moment.",
+    rateLimited: "Too many requests in a row. Wait a minute.",
+    noAccess: "This account is no longer part of the agency team.",
+    staffOnly: "Only owners and managers can do this.",
+    ownerOnly: "Only the agency's owners can do this.",
+  },
 };
