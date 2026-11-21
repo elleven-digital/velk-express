@@ -31,6 +31,7 @@ export const chargeKind = pgEnum("charge_kind", ["one_time", "subscription"]);
 export const chargeStatus = pgEnum("charge_status", ["pending", "paid", "active", "past_due", "canceled"]);
 export const chargeSource = pgEnum("charge_source", ["ticket", "support", "hours", "quote", "none"]);
 export const paymentProvider = pgEnum("payment_provider", ["stripe", "mercadopago"]);
+export const oauthClientKind = pgEnum("oauth_client_kind", ["registered", "metadata_document"]);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -583,6 +584,101 @@ export const paymentEvents = pgTable(
   (t) => [uniqueIndex("payment_events_provider_event_idx").on(t.provider, t.eventId)],
 );
 
+// ------- AI connector login (OAuth) -------
+
+/**
+ * Apps that ask for access. `registered` = dynamic registration
+ * (`/oauth/register`): the public client_id is the row id.
+ * `metadata_document` = client ID metadata document: the client_id is the
+ * document's https URL and the row caches what it said. Name and redirect
+ * URIs are what the app itself said.
+ */
+export const oauthClients = pgTable("oauth_clients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: oauthClientKind("kind").notNull(),
+  clientId: text("client_id").notNull().unique(),
+  name: text("name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  // Metadata documents only: until when the fetched copy is trusted.
+  cacheExpiresAt: timestamp("cache_expires_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/**
+ * One authorization given by a team member to an app, for one resource (the
+ * install's `/mcp` URL when it was granted: changing the public address
+ * leaves old connections unusable). Revoking sets `revokedAt`; its tokens stop
+ * working on the next request. Goes away with the user.
+ */
+export const oauthConnections = pgTable(
+  "oauth_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    resource: text("resource").notNull(),
+    createdAt: createdAt(),
+    // Written at most once a minute, when a token is checked.
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [index("oauth_connections_user_idx").on(t.userId)],
+);
+
+/**
+ * Authorization code: born on "Authorize", valid 10 minutes, exchanged once.
+ * Stored hashed. `connectionId` is the connection its exchange created;
+ * replaying the code revokes it.
+ */
+export const oauthCodes = pgTable(
+  "oauth_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codeHash: text("code_hash").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    resource: text("resource").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    connectionId: uuid("connection_id").references(() => oauthConnections.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("oauth_codes_expires_idx").on(t.expiresAt)],
+);
+
+/**
+ * A connection's token pair: access (1 hour) and refresh (60 idle days),
+ * stored hashed. Refreshing replaces the whole pair; the old row keeps
+ * `replacedAt` so a replayed refresh token is recognised (and revokes the
+ * connection) until it expires.
+ */
+export const oauthTokens = pgTable(
+  "oauth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => oauthConnections.id, { onDelete: "cascade" }),
+    accessHash: text("access_hash").notNull().unique(),
+    refreshHash: text("refresh_hash").notNull().unique(),
+    accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }).notNull(),
+    refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+    replacedAt: timestamp("replaced_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("oauth_tokens_connection_idx").on(t.connectionId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type UserRole = User["role"];
 export type Client = typeof clients.$inferSelect;
@@ -609,3 +705,4 @@ export type ChargeKind = Charge["kind"];
 export type ChargeStatus = Charge["status"];
 export type ChargeSource = Charge["source"];
 export type PaymentProvider = (typeof paymentProvider.enumValues)[number];
+export type OAuthClientRow = typeof oauthClients.$inferSelect;
