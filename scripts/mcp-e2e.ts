@@ -226,6 +226,7 @@ async function main() {
   section("Tools — owner");
   const names = await toolNames(ownerToken);
   check("tools/list answers the tool list", names.includes("get_agency") && names.includes("list_labels"), names);
+  check("the owner gets all 59 tools", names.length === 59 && new Set(names).size === 59, names.length);
 
   const me = data(await call(ownerToken, "get_agency"));
   check("get_agency says who is connected", me.you?.id === owner.id && me.you?.role === "owner", me.you);

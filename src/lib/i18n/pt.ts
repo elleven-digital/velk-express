@@ -974,5 +974,7 @@ statusClosed: "Concluído",
       "Esse login está ativo: quem definiu a senha dele vai ver esta empresa. Vincule só se souber que este e-mail é da mesma pessoa.",
     portalInviteNotEmailed:
       "Nenhum e-mail foi enviado (o e-mail não está configurado ou o envio falhou). O convite está criado: copie o link na aba Acesso do cliente no painel (access_url), em Reenviar convite, e envie você mesmo.",
+    teamInviteNotEmailed:
+      "Nenhum e-mail foi enviado (o e-mail não está configurado ou o envio falhou). O convite está criado: copie o link na página Equipe do painel (team_url), em Reenviar convite, e envie você mesmo.",
   },
 };

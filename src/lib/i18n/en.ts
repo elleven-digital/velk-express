@@ -972,5 +972,7 @@ statusClosed: "Closed",
       "That login is active: whoever set its password will see this company. Link it only if you know this e-mail belongs to the same person.",
     portalInviteNotEmailed:
       "No e-mail went out (e-mail is not set up, or sending failed). The invite stands: copy its link in the client's Access tab in the panel (access_url) with Resend invite, and send it yourself.",
+    teamInviteNotEmailed:
+      "No e-mail went out (e-mail is not set up, or sending failed). The invite stands: copy its link on the panel's Team page (team_url) with Resend invite, and send it yourself.",
   },
 };

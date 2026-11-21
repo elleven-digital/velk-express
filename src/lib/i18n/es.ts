@@ -974,5 +974,7 @@ statusClosed: "Cerrado",
       "Ese acceso está activo: quien definió su contraseña verá esta empresa. Vincúlalo solo si sabes que este correo es de la misma persona.",
     portalInviteNotEmailed:
       "No se envió ningún correo (el correo no está configurado o el envío falló). La invitación está creada: copia su enlace en la pestaña Acceso del cliente en el panel (access_url), con Reenviar invitación, y envíalo tú.",
+    teamInviteNotEmailed:
+      "No se envió ningún correo (el correo no está configurado o el envío falló). La invitación está creada: copia su enlace en la página Equipo del panel (team_url), con Reenviar invitación, y envíalo tú.",
   },
 };
