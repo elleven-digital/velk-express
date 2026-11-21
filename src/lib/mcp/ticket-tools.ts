@@ -339,7 +339,7 @@ export const registerTicketTools: ToolRegistrar = (server, scope) => {
         "Logs time worked on a ticket, in the connected person's name: whole minutes, up to 24 hours. Time on support tickets counts against the client's monthly hours. worked_on (YYYY-MM-DD) defaults to today in the agency's time zone and can't be in the future.",
       inputSchema: z.object({
         ticket_id: TICKET_ID,
-        minutes: z.number().int().min(1).describe("Whole minutes worked, e.g. 90 for 1h30."),
+        minutes: z.number().describe("Whole minutes worked, from 1 to 1440 (24 hours), e.g. 90 for 1h30."),
         worked_on: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)

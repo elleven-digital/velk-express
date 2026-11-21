@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { en } from "@/lib/i18n/en";
 import { pt } from "@/lib/i18n/pt";
+import { parseDuration } from "@/lib/hours";
 
 vi.mock("@/lib/mcp/context", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/mcp/context")>();
@@ -121,5 +122,10 @@ describe("minutesToDuration", () => {
 
   it("gives anything else as a duration the core refuses", () => {
     for (const bad of [0, -5, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) expect(minutesToDuration(bad)).toBe("");
+  });
+
+  it("never turns a bad number into a valid duration for the core", () => {
+    for (const bad of [0, -5, 1.5, 0.4, 59.9, 24 * 60 + 1, Number.NaN]) expect(parseDuration(minutesToDuration(bad))).toBeNull();
+    expect(parseDuration(minutesToDuration(24 * 60))).toBe(24 * 60);
   });
 });

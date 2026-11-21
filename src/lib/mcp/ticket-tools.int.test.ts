@@ -282,15 +282,14 @@ describe("log_time", () => {
 
   it("refuses 0, negative, fractional and over-the-limit minutes, logging nothing", async () => {
     const ticketId = await openAs(owner, acme, "Banner");
-    for (const minutes of [0, -5, 1.5]) {
+    // Each reaches the core and gets the panel's sentence, in the person's language.
+    for (const minutes of [0, -5, 1.5, 24 * 60 + 1]) {
       const result = await call(collab, "log_time", { ticket_id: ticketId, minutes });
       expect(result.isError).toBe(true);
-      expect(sentence(result)).toContain("Input validation error");
+      expect(sentence(result)).toBe(en.tickets.errors.invalidDuration);
+      const asManager = await call(manager, "log_time", { ticket_id: ticketId, minutes });
+      expect(sentence(asManager)).toBe(pt.tickets.errors.invalidDuration);
     }
-    // Over the panel's 24 hours: the panel's own sentence.
-    const tooLong = await call(collab, "log_time", { ticket_id: ticketId, minutes: 24 * 60 + 1 });
-    expect(tooLong.isError).toBe(true);
-    expect(sentence(tooLong)).toBe(en.tickets.errors.invalidDuration);
     const future = await call(manager, "log_time", { ticket_id: ticketId, minutes: 30, worked_on: "2999-01-01" });
     expect(sentence(future)).toBe(pt.tickets.errors.futureDate);
     expect(await db.select().from(timeEntries)).toEqual([]);

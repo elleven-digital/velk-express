@@ -62,8 +62,8 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
   const fraction = await call(collabToken, "log_time", { ticket_id: ticketId, minutes: 1.5 });
   const [entries] = await sql`select count(*)::int as n from time_entries where ticket_id = ${ticketId}`;
   check(
-    "log_time over 24 hours gets the panel's sentence, a fraction is refused, and nothing more is logged",
-    sentence(tooMuch).startsWith("Enter the time like") && fraction.isError === true && entries.n === 1,
+    "log_time over 24 hours or a fraction gets the panel's sentence, and nothing more is logged",
+    sentence(tooMuch).startsWith("Enter the time like") && sentence(fraction).startsWith("Enter the time like") && entries.n === 1,
     [sentence(tooMuch), sentence(fraction), entries.n],
   );
 
