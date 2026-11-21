@@ -55,7 +55,8 @@ function allowed(actor: TeamSession, gate: Gate): boolean {
  */
 const localeOfActor = new WeakMap<TeamSession, Locale>();
 
-function dictFor(actor: TeamSession): Dict {
+/** The dictionary of the actor's answers: fixed sentences a tool adds to its data. */
+export function dictFor(actor: TeamSession): Dict {
   const locale = localeOfActor.get(actor) ?? (isLocale(actor.user.locale) ? actor.user.locale : DEFAULT_LOCALE);
   return dictOf(locale);
 }

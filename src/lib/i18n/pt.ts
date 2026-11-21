@@ -968,5 +968,11 @@ statusClosed: "Concluído",
     noAccess: "Esta conta não faz mais parte da equipe da agência.",
     staffOnly: "Só donos e gestores podem fazer isso.",
     ownerOnly: "Só os donos da agência podem fazer isso.",
+    portalLinkQuestion:
+      "Este e-mail já tem login na área do cliente, por outras empresas (existing_login). Nada foi gravado. Pergunte à pessoa se deve vincular esse login a esta empresa; só se ela disser que sim, chame invite_to_portal de novo com os mesmos argumentos e confirm: true.",
+    portalLinkActive:
+      "Esse login está ativo: quem definiu a senha dele vai ver esta empresa. Vincule só se souber que este e-mail é da mesma pessoa.",
+    portalInviteNotEmailed:
+      "Nenhum e-mail foi enviado (o e-mail não está configurado ou o envio falhou). O convite está criado: copie o link na aba Acesso do cliente no painel (access_url), em Reenviar convite, e envie você mesmo.",
   },
 };

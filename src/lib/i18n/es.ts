@@ -968,5 +968,11 @@ statusClosed: "Cerrado",
     noAccess: "Esta cuenta ya no forma parte del equipo de la agencia.",
     staffOnly: "Solo dueños y gestores pueden hacer esto.",
     ownerOnly: "Solo los dueños de la agencia pueden hacer esto.",
+    portalLinkQuestion:
+      "Este correo ya tiene acceso al área del cliente, por otras empresas (existing_login). No se guardó nada. Pregunta a la persona si quiere vincular ese acceso a esta empresa; solo si dice que sí, llama de nuevo a invite_to_portal con los mismos argumentos y confirm: true.",
+    portalLinkActive:
+      "Ese acceso está activo: quien definió su contraseña verá esta empresa. Vincúlalo solo si sabes que este correo es de la misma persona.",
+    portalInviteNotEmailed:
+      "No se envió ningún correo (el correo no está configurado o el envío falló). La invitación está creada: copia su enlace en la pestaña Acceso del cliente en el panel (access_url), con Reenviar invitación, y envíalo tú.",
   },
 };

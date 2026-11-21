@@ -966,5 +966,11 @@ statusClosed: "Closed",
     noAccess: "This account is no longer part of the agency team.",
     staffOnly: "Only owners and managers can do this.",
     ownerOnly: "Only the agency's owners can do this.",
+    portalLinkQuestion:
+      "This e-mail already has a login in the client area, through other companies (existing_login). Nothing was written. Ask the person whether to link that login to this company; only if they say yes, call invite_to_portal again with the same arguments and confirm: true.",
+    portalLinkActive:
+      "That login is active: whoever set its password will see this company. Link it only if you know this e-mail belongs to the same person.",
+    portalInviteNotEmailed:
+      "No e-mail went out (e-mail is not set up, or sending failed). The invite stands: copy its link in the client's Access tab in the panel (access_url) with Resend invite, and send it yourself.",
   },
 };
