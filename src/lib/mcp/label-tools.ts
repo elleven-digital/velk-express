@@ -126,7 +126,7 @@ export const registerLabelTools: ToolRegistrar = (server, scope) => {
     },
     teamTool(scope, "add_ticket_label", "member", async (actor, args) => {
       const result = await labels.addTicketLabel(actor, args.ticket_id, args.label_id);
-      if (!result.ok) return refused(actor, result.error);
+      if (!result.ok) return refused(actor, result.error, "tickets");
       recordWrite(scope, actor, "add_ticket_label");
       return written({ ticket_id: args.ticket_id, label_id: args.label_id });
     }),
@@ -141,7 +141,7 @@ export const registerLabelTools: ToolRegistrar = (server, scope) => {
     },
     teamTool(scope, "remove_ticket_label", "member", async (actor, args) => {
       const result = await labels.removeTicketLabel(actor, args.ticket_id, args.label_id);
-      if (!result.ok) return refused(actor, result.error);
+      if (!result.ok) return refused(actor, result.error, "tickets");
       recordWrite(scope, actor, "remove_ticket_label");
       return written({ ticket_id: args.ticket_id, label_id: args.label_id });
     }),

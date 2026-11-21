@@ -105,11 +105,13 @@ export function teamTool<A>(
 export type ErrorArea = "tickets" | "team" | "clients" | "hours" | "portalUsers" | "quotes" | "charges" | "settings";
 
 /**
- * A core refusal: the sentence the panel shows for that error key, from the
- * area the tool belongs to (tickets by default), in the person's language.
- * A key the area doesn't know reads as the area's generic sentence.
+ * A core refusal: the sentence the panel shows for that error key, in the
+ * person's language. `area` is the dictionary the panel action calling the
+ * same core function reads (`t.<area>.errors`): always named, so a tool can't
+ * answer another area's sentence by default. A key the area doesn't know
+ * reads as the area's generic sentence.
  */
-export function refused(actor: TeamSession, error: string, area: ErrorArea = "tickets"): CallToolResult {
+export function refused(actor: TeamSession, error: string, area: ErrorArea): CallToolResult {
   const errors = dictFor(actor)[area].errors as Record<string, string> & { generic: string };
   return toolError(lookup(errors, error) ?? errors.generic);
 }
@@ -125,6 +127,15 @@ export function recordWrite(scope: ToolScope, actor: TeamSession, tool: string):
     clientId: scope.clientId,
     connectionId: scope.connectionId,
   });
+}
+
+/**
+ * Whole minutes as the duration the cores read ("45m"). Anything else (zero,
+ * negative, fractional, not finite) becomes "", which the cores refuse with
+ * the panel's sentence, so a bad number never turns into some other time.
+ */
+export function minutesToDuration(minutes: number): string {
+  return Number.isSafeInteger(minutes) && minutes > 0 ? `${minutes}m` : "";
 }
 
 /** After a write: the answer. */

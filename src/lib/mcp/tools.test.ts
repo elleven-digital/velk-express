@@ -8,7 +8,7 @@ vi.mock("@/lib/mcp/context", async (importOriginal) => {
 });
 
 const { actorForUser, agencyLocale } = await import("@/lib/mcp/context");
-const { teamTool, refused } = await import("@/lib/mcp/tools");
+const { teamTool, refused, minutesToDuration } = await import("@/lib/mcp/tools");
 
 const SCOPE = { userId: "u1", connectionId: "c1", clientId: "https://app.test/meta.json", clientName: "App", rateLimited: false };
 
@@ -102,12 +102,24 @@ describe("refused", () => {
     });
   });
 
-  it("reads ticket sentences by default and falls back to the area's generic sentence", () => {
-    expect(refused(actor("owner"), "closed").content[0]).toEqual({ type: "text", text: en.tickets.errors.closed });
+  it("reads the named area's sentence and falls back to that area's generic sentence", () => {
+    expect(refused(actor("owner"), "closed", "tickets").content[0]).toEqual({ type: "text", text: en.tickets.errors.closed });
+    expect(refused(actor("owner"), "notFound", "charges").content[0]).toEqual({ type: "text", text: en.charges.errors.notFound });
     expect(refused(actor("owner"), "somethingNew", "settings").content[0]).toEqual({
       type: "text",
       text: en.settings.errors.generic,
     });
-    expect(refused(actor("owner"), "constructor").content[0]).toEqual({ type: "text", text: en.tickets.errors.generic });
+    expect(refused(actor("owner"), "constructor", "tickets").content[0]).toEqual({ type: "text", text: en.tickets.errors.generic });
+  });
+});
+
+describe("minutesToDuration", () => {
+  it("writes whole minutes as the core's duration", () => {
+    expect(minutesToDuration(45)).toBe("45m");
+    expect(minutesToDuration(90)).toBe("90m");
+  });
+
+  it("gives anything else as a duration the core refuses", () => {
+    for (const bad of [0, -5, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) expect(minutesToDuration(bad)).toBe("");
   });
 });

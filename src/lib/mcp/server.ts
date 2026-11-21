@@ -2,6 +2,7 @@ import "server-only";
 import { McpServer } from "@modelcontextprotocol/server";
 import { registerLabelTools } from "@/lib/mcp/label-tools";
 import { registerSettingsTools } from "@/lib/mcp/settings-tools";
+import { registerTicketTools } from "@/lib/mcp/ticket-tools";
 import type { ToolScope } from "@/lib/mcp/tools";
 
 /**
@@ -25,6 +26,7 @@ export function buildServer(scope: ToolScope): McpServer {
     { instructions: SERVER_INSTRUCTIONS, capabilities: { tools: { listChanged: false } } },
   );
   registerSettingsTools(server, scope);
+  registerTicketTools(server, scope);
   registerLabelTools(server, scope);
   return server;
 }
