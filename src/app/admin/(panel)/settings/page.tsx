@@ -10,6 +10,8 @@ import { listLabels } from "@/lib/core/labels";
 import { CURRENCIES, getInstallationStatus, getPaymentSettings } from "@/lib/core/settings";
 import { fmt, LOCALES, LOCALE_NAMES } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
+import { mcpResourceUrl } from "@/lib/oauth/rules";
+import { listActiveConnections } from "@/lib/oauth/store";
 import { timeZoneGroups, timeZoneOrDefault } from "@/lib/time-zone";
 import { isNewer, UPDATE_GUIDE_URL } from "@/lib/update-check";
 import { db, agency as agencyTable, users } from "@/lib/db";
@@ -25,6 +27,7 @@ import {
   updateLabelAction,
   uploadLogoAction,
 } from "./actions";
+import { ConnectionsSection } from "./connections-section";
 import { LabelsSection } from "./labels-section";
 import { AgencyForm, AppUrlForm, DefaultProviderForm, LogoForm, VisibilityForm } from "./settings-forms";
 
@@ -40,11 +43,29 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export default async function SettingsPage() {
-  // Managers open the page for the labels only; every other section is the owner's.
-  const session = await requireTeam(["owner", "manager"]);
-  const isOwner = session.user.role === "owner";
-  const { t } = await getUserDict();
+  // Every role opens the page: a collaborator sees only their AI connections, a manager also
+  // the labels, the owner everything. Each action keeps its own role check.
+  const session = await requireTeam();
+  const role = session.user.role;
+  const isOwner = role === "owner";
+  const { t, locale } = await getUserDict();
   const s = t.settings;
+  // Like the webhook addresses below, a missing public address must not break the page.
+  const [connections, connectorUrl] = await Promise.all([
+    listActiveConnections(session.user.id),
+    mcpResourceUrl().catch(() => null),
+  ]);
+  const connectionsSection = <ConnectionsSection connections={connections} connectorUrl={connectorUrl} locale={locale} t={t} />;
+
+  if (role === "collaborator") {
+    return (
+      <>
+        <PageHeader title={s.title} />
+        <div className="max-w-3xl space-y-8">{connectionsSection}</div>
+      </>
+    );
+  }
+
   const labels = await listLabels();
   const labelsSection = (
     <section aria-labelledby="labels-title">
@@ -94,7 +115,10 @@ export default async function SettingsPage() {
     return (
       <>
         <PageHeader title={s.title} />
-        <div className="max-w-3xl space-y-8">{labelsSection}</div>
+        <div className="max-w-3xl space-y-8">
+          {labelsSection}
+          {connectionsSection}
+        </div>
       </>
     );
   }
@@ -223,13 +247,14 @@ export default async function SettingsPage() {
                   <Row label={s.publicUrl}>
                     <span className="break-all">{status.appUrl}</span>
                     <span className="block text-muted">{s.publicUrlLocked}</span>
+                    <span className="block text-muted">{s.publicUrlReconnect}</span>
                   </Row>
                 </dl>
               ) : (
                 <AppUrlForm
                   action={saveAppUrlAction}
                   label={s.publicUrl}
-                  hint={s.publicUrlHint}
+                  hint={`${s.publicUrlHint} ${s.publicUrlReconnect}`}
                   save={s.save}
                   value={status.appUrl}
                 />
@@ -342,6 +367,8 @@ export default async function SettingsPage() {
             </Card>
           </div>
         </section>
+
+        {connectionsSection}
       </div>
     </>
   );

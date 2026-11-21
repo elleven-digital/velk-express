@@ -10,6 +10,7 @@ import { formValues, type FormValues } from "@/lib/form-values";
 import { setAppUrl } from "@/lib/instance";
 import { LOCALES } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
+import { revokeConnection } from "@/lib/oauth/store";
 import type { SettingsState } from "./settings-state";
 
 const agencySchema = z.object({
@@ -153,4 +154,15 @@ export async function saveDefaultProviderAction(_prev: SettingsState, formData: 
   if (!res.ok) return error(res.error, formValues(formData, ["provider"]));
   revalidatePath("/admin/settings");
   return { ok: t.settings.saved };
+}
+
+/**
+ * Settings → AI connections → Revoke, open to every role. Only the person's
+ * own connection: someone else's id (or a malformed one) changes nothing.
+ * The app's tokens stop working on its next request.
+ */
+export async function revokeAiConnectionAction(connectionId: string): Promise<void> {
+  const { user } = await requireTeam();
+  await revokeConnection({ userId: user.id, connectionId: String(connectionId) });
+  revalidatePath("/admin/settings");
 }
