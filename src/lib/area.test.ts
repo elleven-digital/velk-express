@@ -26,6 +26,16 @@ describe("areaFor", () => {
     expect(areaFor("/pay")).toBe("public");
     expect(areaFor("/payments")).toBe("portal");
   });
+  it("maps the AI connector and its login to the team area", () => {
+    expect(areaFor("/mcp")).toBe("team");
+    expect(areaFor("/oauth/token")).toBe("team");
+    expect(areaFor("/oauth/authorize")).toBe("team");
+    expect(areaFor("/oauth/register")).toBe("team");
+    expect(areaFor("/.well-known/oauth-authorization-server")).toBe("team");
+    expect(areaFor("/.well-known/oauth-protected-resource/mcp")).toBe("team");
+    expect(areaFor("/mcpx")).toBe("portal");
+    expect(areaFor("/oauthx")).toBe("portal");
+  });
   it("maps everything else to the portal", () => {
     expect(areaFor("/")).toBe("portal");
     expect(areaFor("/users")).toBe("portal");

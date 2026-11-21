@@ -11,6 +11,7 @@ import {
   type Db,
   type OAuthClientRow,
 } from "@/lib/db";
+import { defaultMetadataDeps, fetchClientMetadata, type MetadataDeps } from "@/lib/oauth/client-metadata";
 import {
   ACCESS_TTL_MS,
   CODE_TTL_MS,
@@ -103,13 +104,14 @@ export async function registerClient(
 
 /**
  * Any client_id to its app, or `null`: a registered one by id; a metadata
- * document by the cached copy while it's fresh, else by a new fetch (through
- * `fetchMetadata`) that updates the same row. A refused fetch is `null`, even
- * with a stale copy; without a fetcher, only a fresh copy resolves.
+ * document by the cached copy while it's fresh, else by a new fetch that
+ * updates the same row. A refused fetch is `null`, even with a stale copy.
+ * The fetch is `fetchClientMetadata` (over `deps`, the real network by
+ * default) unless a `fetchMetadata` is given.
  */
 export async function resolveClient(
   clientId: string,
-  opts: { fetchMetadata?: ClientMetadataFetcher; now?: Date; db?: Db } = {},
+  opts: { fetchMetadata?: ClientMetadataFetcher; deps?: MetadataDeps; now?: Date; db?: Db } = {},
 ): Promise<OAuthClient | null> {
   const now = opts.now ?? new Date();
   const db = opts.db ?? appDb;
@@ -129,9 +131,9 @@ export async function resolveClient(
   if (cached?.cacheExpiresAt && cached.cacheExpiresAt.getTime() > now.getTime()) {
     return fromRow(cached);
   }
-  if (!opts.fetchMetadata) return null;
-
-  const fetched = await opts.fetchMetadata(clientId);
+  const fetched = opts.fetchMetadata
+    ? await opts.fetchMetadata(clientId)
+    : await fetchClientMetadata(clientId, opts.deps ?? defaultMetadataDeps);
   if (!fetched.ok) return null;
   const values = {
     name: fetched.name,

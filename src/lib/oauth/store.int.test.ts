@@ -18,6 +18,7 @@ import {
   type OAuthClient,
   type TokenSet,
 } from "./store";
+import type { MetadataDeps } from "./client-metadata";
 
 // getConfig() is lazy: the test database and a fixed public address (refresh reads it by default).
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
@@ -117,11 +118,32 @@ describe("apps", () => {
     expect(await isKnownClient(url, db)).toBe(true);
   });
 
-  it("a refused fetch is null even with a stale copy, and no fetcher means no fetch", async () => {
+  it("a refused fetch is null even with a stale copy", async () => {
     const url = "https://app.example/oauth/client.json";
     await resolveClient(url, { fetchMetadata: async () => ({ ok: true, name: "Doc", redirectUris: [REDIRECT], ttlMs: 1000 }), now: T0, db });
     expect(await resolveClient(url, { fetchMetadata: async () => ({ ok: false }), now: later(5000), db })).toBeNull();
-    expect(await resolveClient(url, { now: later(5000), db })).toBeNull();
+  });
+
+  it("without a fetcher, a metadata document is fetched and checked by fetchClientMetadata", async () => {
+    const url = "https://app.example/oauth/client.json";
+    const document = { client_id: url, client_name: "Doc App", redirect_uris: [REDIRECT] };
+    const deps: MetadataDeps = {
+      lookup: vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]),
+      fetch: vi.fn(async () => Response.json(document, { headers: { "Cache-Control": "max-age=600" } })),
+    };
+    const resolved = await resolveClient(url, { deps, now: T0, db });
+    expect(resolved).toMatchObject({ clientId: url, name: "Doc App", redirectUris: [REDIRECT], kind: "metadata_document" });
+    expect(deps.fetch).toHaveBeenCalledWith(url, expect.objectContaining({ redirect: "manual" }));
+    const [row] = await db.select().from(oauthClients).where(eq(oauthClients.clientId, url));
+    expect(row.cacheExpiresAt).toEqual(later(600_000));
+
+    // A document served from a private address is refused, even with a stale copy.
+    const internal: MetadataDeps = {
+      lookup: async () => [{ address: "10.0.0.5", family: 4 }],
+      fetch: vi.fn(async () => Response.json(document)),
+    };
+    expect(await resolveClient(url, { deps: internal, now: later(700_000), db })).toBeNull();
+    expect(internal.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -260,6 +282,28 @@ describe("refresh", () => {
     expect(connection.revokedAt).not.toBeNull();
     expect(await refresh(rotated.tokens.refreshToken)).toEqual({ ok: false, error: "invalid_grant" });
     expect(await verifyAccessToken(rotated.tokens.accessToken, RESOURCE, later(60_000), db)).toBeNull();
+  });
+
+  it("two concurrent refreshes with the same token: one wins, the other is reuse and revokes the connection", async () => {
+    const { tokens, connectionId } = await connect();
+    const results = await Promise.all([refresh(tokens.refreshToken), refresh(tokens.refreshToken)]);
+    const won = results.filter((r) => r.ok);
+    expect(won).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, error: "invalid_grant" }]);
+
+    const [connection] = await db.select().from(oauthConnections).where(eq(oauthConnections.id, connectionId));
+    expect(connection.revokedAt).not.toBeNull();
+    // No live token set is left: the winner's pair belongs to a revoked connection.
+    const winner = won[0];
+    if (!winner.ok) throw new Error("unreachable");
+    expect(await verifyAccessToken(winner.tokens.accessToken, RESOURCE, later(60_000), db)).toBeNull();
+    expect(await refresh(winner.tokens.refreshToken)).toEqual({ ok: false, error: "invalid_grant" });
+    const live = await db
+      .select()
+      .from(oauthTokens)
+      .innerJoin(oauthConnections, eq(oauthConnections.id, oauthTokens.connectionId))
+      .where(sql`${oauthTokens.replacedAt} is null and ${oauthConnections.revokedAt} is null`);
+    expect(live).toHaveLength(0);
   });
 
   it("is invalid_grant for another app, after 60 idle days, or without the prefix", async () => {
