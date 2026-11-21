@@ -173,6 +173,29 @@ describe("listTickets", () => {
 });
 
 describe("listTickets columns", () => {
+  it("filters by whose move it is, as whoseTurn says, on open tickets only", async () => {
+    await open(owner, acme, "Agency opened");
+    const answered = await open(owner, acme, "Client answered");
+    await db.insert(messages).values({
+      ticketId: answered.ticketId,
+      authorType: "client",
+      authorId: crypto.randomUUID(),
+      bodyHtml: "<p>hi</p>",
+      bodyText: "hi",
+    });
+    const [clientOpened] = await db
+      .insert(tickets)
+      .values({ number: 900, clientId: acme.id, type: "support", title: "Client opened", createdByType: "client", createdById: crypto.randomUUID() })
+      .returning();
+    await db
+      .insert(tickets)
+      .values({ number: 901, clientId: acme.id, type: "support", title: "Closed", status: "closed", closedAt: new Date(), createdByType: "client", createdById: crypto.randomUUID() });
+    expect((await titles(owner, { turn: "agency" })).sort()).toEqual(["Client answered", "Client opened"]);
+    expect(await titles(owner, { turn: "client" })).toEqual(["Agency opened"]);
+    const row = (await listTickets(owner, { turn: "agency" }, 1, db)).rows.find((r) => r.ticket.id === clientOpened.id);
+    expect(row?.ticket.createdByType).toBe("client");
+  });
+
   it("never carries the agreed value, for staff or collaborators", async () => {
     const res = await createTicket(owner, { clientId: acme.id, type: "single", title: "Priced", bodyHtml: "", valueCents: 120_000 }, { db });
     if (!res.ok) throw new Error(res.error);
@@ -180,7 +203,16 @@ describe("listTickets columns", () => {
     for (const actor of [owner, collab]) {
       const { rows } = await listTickets(actor, {}, 1, db);
       expect(rows).toHaveLength(1);
-      expect(Object.keys(rows[0].ticket).sort()).toEqual(["createdAt", "id", "lastMessageAt", "number", "status", "title", "type"]);
+      expect(Object.keys(rows[0].ticket).sort()).toEqual([
+        "createdAt",
+        "createdByType",
+        "id",
+        "lastMessageAt",
+        "number",
+        "status",
+        "title",
+        "type",
+      ]);
       expect(JSON.stringify(rows[0])).not.toContain("120000");
     }
   });

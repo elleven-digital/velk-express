@@ -1,7 +1,8 @@
 import { asc } from "drizzle-orm";
 import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui";
 import { requireTeam } from "@/lib/auth/guards";
-import { clientAssignments, clients, db, users, type UserRole } from "@/lib/db";
+import { listMembers, type FullMemberRow } from "@/lib/core/team";
+import { clients, db, type UserRole } from "@/lib/db";
 import { getUserDict } from "@/lib/i18n/server";
 import {
   changeRoleAction,
@@ -19,12 +20,12 @@ export default async function TeamPage() {
   const me = await requireTeam(["owner"]);
   const { t } = await getUserDict();
 
-  const members = await db.select().from(users).orderBy(asc(users.createdAt), asc(users.email));
-  const [allClients, links] = await Promise.all([
+  const [listed, allClients] = await Promise.all([
+    listMembers(me),
     db.select({ id: clients.id, name: clients.name }).from(clients).orderBy(asc(clients.name), asc(clients.id)),
-    db.select().from(clientAssignments),
   ]);
-  const clientIdsOf = (userId: string) => links.filter((l) => l.userId === userId).map((l) => l.clientId);
+  // The page is the owner's, so every row is a full one.
+  const members = listed.ok ? listed.value.filter((m): m is FullMemberRow => "email" in m) : [];
   const roles: Record<UserRole, string> = {
     owner: t.team.roleOwner,
     manager: t.team.roleManager,
@@ -80,22 +81,14 @@ export default async function TeamPage() {
                     <div className="truncate text-muted">{member.email}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    {member.passwordHash ? null : <Badge tone="warn">{t.team.pendingInvite}</Badge>}
+                    {member.pending ? <Badge tone="warn">{t.team.pendingInvite}</Badge> : null}
                     <Badge tone={member.role === "owner" ? "ink" : "lav"}>{roles[member.role]}</Badge>
                   </div>
                 </div>
                 {isMe ? null : (
                   <div className="mt-3">
                     <MemberControls
-                      member={{
-                        id: member.id,
-                        name: member.name,
-                        email: member.email,
-                        role: member.role,
-                        pending: !member.passwordHash,
-                        isMe,
-                        clientIds: clientIdsOf(member.id),
-                      }}
+                      member={{ ...member, isMe }}
                       clients={allClients}
                       actions={actions}
                       labels={labels}

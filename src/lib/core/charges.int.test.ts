@@ -27,6 +27,7 @@ import {
   cancelCharge,
   chargeFor,
   createCharge,
+  getCharge,
   listCharges,
   markChargePaid,
   removeChargeDocument,
@@ -842,5 +843,28 @@ describe("charges", () => {
     // Only canceled ones: none.
     expect(expectOk(await chargeFor(manager, { source: "ticket", sourceId: tb.id }, deps()))).toBeNull();
     expect(expectOk(await chargeFor(manager, { source: "support", sourceId: a.id }, deps()))).toBeNull();
+  });
+
+  it("finds one charge with the list's visibility: a manager does not see a quote's, a collaborator nothing", async () => {
+    const client = await makeClient({ name: "Acme" });
+    const ticket = await makeTicket(client.id);
+    const t = expectOk(await createCharge(owner, { source: "ticket", sourceId: ticket.id, provider: null }, deps()));
+    const quoteId = await sentQuote({ clientId: client.id, items: [item()] });
+    const q = expectOk(await createCharge(owner, { source: "quote", sourceId: quoteId, provider: null }, deps()));
+    const notFound = { ok: false, error: "notFound" };
+
+    // The same row the list shows, for each viewer.
+    const ownerList = expectOk(await listCharges(owner, {}, deps()));
+    expect(expectOk(await getCharge(owner, q.id, deps()))).toEqual(ownerList.find((r) => r.id === q.id));
+    expect(expectOk(await getCharge(owner, t.id, deps()))).toEqual(ownerList.find((r) => r.id === t.id));
+    const managerList = expectOk(await listCharges(manager, {}, deps()));
+    expect(expectOk(await getCharge(manager, t.id, deps()))).toEqual(managerList.find((r) => r.id === t.id));
+    expect(expectOk(await getCharge(manager, t.id, deps()))).toMatchObject({ clientName: "Acme", canAct: true, source: "ticket" });
+
+    // A quote's charge does not exist for a manager.
+    expect(await getCharge(manager, q.id, deps())).toEqual(notFound);
+    expect(await getCharge(collab, t.id, deps())).toEqual({ ok: false, error: "forbidden" });
+    expect(await getCharge(owner, "nope", deps())).toEqual(notFound);
+    expect(await getCharge(owner, "00000000-0000-4000-8000-000000000000", deps())).toEqual(notFound);
   });
 });

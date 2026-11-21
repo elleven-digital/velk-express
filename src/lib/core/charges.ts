@@ -568,7 +568,16 @@ export async function removeChargeDocument(actor: TeamSession, chargeId: string,
 
 type ViewRow = { charge: Charge; clientName: string | null; documentName: string | null };
 
-const viewColumns = { charge: charges, clientName: clients.name, documentName: files.name };
+/** The charges matching `where` with what their view needs, newest first. */
+function selectViews(db: Db, where: SQL | undefined): Promise<ViewRow[]> {
+  return db
+    .select({ charge: charges, clientName: clients.name, documentName: files.name })
+    .from(charges)
+    .leftJoin(clients, eq(clients.id, charges.clientId))
+    .leftJoin(files, eq(files.id, charges.documentFileId))
+    .where(where)
+    .orderBy(desc(charges.createdAt), desc(charges.id));
+}
 
 function toView(actor: TeamSession, appUrl: string, { charge: c, clientName, documentName }: ViewRow): ChargeView {
   return {
@@ -615,15 +624,23 @@ export async function listCharges(
     if (!STATUSES.includes(filter.status as ChargeStatus)) return ok([]);
     where.push(eq(charges.status, filter.status as ChargeStatus));
   }
-  const rows = await db
-    .select(viewColumns)
-    .from(charges)
-    .leftJoin(clients, eq(clients.id, charges.clientId))
-    .leftJoin(files, eq(files.id, charges.documentFileId))
-    .where(where.length ? and(...where) : undefined)
-    .orderBy(desc(charges.createdAt), desc(charges.id));
+  const rows = await selectViews(db, where.length ? and(...where) : undefined);
   const appUrl = await getAppUrl();
   return ok(rows.map((r) => toView(actor, appUrl, r)));
+}
+
+/**
+ * One charge, as `listCharges` shows it. Staff only; a quote's charge is the owner's, so for a
+ * manager it does not exist (`notFound`), as in the list.
+ */
+export async function getCharge(actor: TeamSession, chargeId: string, deps: ChargeDeps = {}): Promise<Result<ChargeView>> {
+  if (!isStaff(actor.user)) return fail("forbidden");
+  if (!uuid.safeParse(chargeId).success) return fail("notFound");
+  const db = deps.db ?? appDb;
+  const [row] = await selectViews(db, eq(charges.id, chargeId));
+  // Who may see a charge is who may act on it: staff, and for a quote's only the owner.
+  if (!row || !canActOn(actor, row.charge.source)) return fail("notFound");
+  return ok(toView(actor, await getAppUrl(), row));
 }
 
 /**
@@ -648,14 +665,7 @@ export async function chargeFor(
   const where = bySource[target.source];
   if (!where) return fail("notFound");
   const db = deps.db ?? appDb;
-  const [row] = await db
-    .select(viewColumns)
-    .from(charges)
-    .leftJoin(clients, eq(clients.id, charges.clientId))
-    .leftJoin(files, eq(files.id, charges.documentFileId))
-    .where(and(where, ne(charges.status, "canceled")))
-    .orderBy(desc(charges.createdAt))
-    .limit(1);
+  const [row] = await selectViews(db, and(where, ne(charges.status, "canceled")));
   if (!row) return ok(null);
   return ok(toView(actor, await getAppUrl(), row));
 }

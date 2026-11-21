@@ -31,6 +31,8 @@ export type TicketFilters = {
   status?: TicketStatus;
   clientId?: string;
   who?: "mine" | "unassigned";
+  /** Whose move it is, as `whoseTurn` says; open tickets only. Not read from the URL. */
+  turn?: "agency" | "client";
   unread?: boolean;
   labelId?: string;
   q?: string;
@@ -40,7 +42,10 @@ export type TicketFilters = {
  * The ticket columns the list shows. Not the whole row: `valueCents` is staff business and no list
  * needs it, so it is never selected here.
  */
-export type TicketListItem = Pick<Ticket, "id" | "number" | "title" | "type" | "status" | "lastMessageAt" | "createdAt">;
+export type TicketListItem = Pick<
+  Ticket,
+  "id" | "number" | "title" | "type" | "status" | "createdByType" | "lastMessageAt" | "createdAt"
+>;
 
 export type TicketRow = {
   ticket: TicketListItem;
@@ -88,16 +93,14 @@ function searchWhere(q: string): SQL {
   return or(...parts) as SQL;
 }
 
-/** Newest activity first: the last message, or the opening for a ticket nobody wrote on. */
-export async function listTickets(
-  actor: TeamSession,
-  filters: TicketFilters,
-  page = 1,
-  db: Db = appDb,
-): Promise<{ rows: TicketRow[]; total: number }> {
+/** Open tickets whose move is the agency's (as `whoseTurn` says): the last word, or the opening, is the client's. */
+const agencyTurnSql = sql`(${tickets.status} = 'open' and coalesce(${lastAuthorType}::text, ${tickets.createdByType}::text) = 'client')`;
+
+/** The WHERE of a ticket query for this member and these filters; null when nothing can match. */
+async function listWhere(actor: TeamSession, filters: TicketFilters, db: Db): Promise<SQL | undefined | null> {
   // A filter naming something that cannot exist has no tickets, and is not an error.
-  if (filters.clientId !== undefined && !uuid.safeParse(filters.clientId).success) return { rows: [], total: 0 };
-  if (filters.labelId !== undefined && !uuid.safeParse(filters.labelId).success) return { rows: [], total: 0 };
+  if (filters.clientId !== undefined && !uuid.safeParse(filters.clientId).success) return null;
+  if (filters.labelId !== undefined && !uuid.safeParse(filters.labelId).success) return null;
 
   const me = actor.user.id;
   const conditions: (SQL | undefined)[] = [await visibleTicketsWhere(actor, db)];
@@ -117,6 +120,8 @@ export async function listTickets(
       notExists(db.select({ one: ticketAssignments.ticketId }).from(ticketAssignments).where(eq(ticketAssignments.ticketId, tickets.id))),
     );
   }
+  if (filters.turn === "agency") conditions.push(agencyTurnSql);
+  else if (filters.turn === "client") conditions.push(sql`(${tickets.status} = 'open' and not ${agencyTurnSql})`);
   if (filters.unread) conditions.push(unreadWhere(me));
   if (filters.labelId) {
     conditions.push(
@@ -130,15 +135,11 @@ export async function listTickets(
   }
   const q = filters.q?.trim().slice(0, QUERY_MAX);
   if (q) conditions.push(searchWhere(q));
-  const where = and(...conditions);
+  return and(...conditions);
+}
 
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(tickets)
-    .innerJoin(clients, eq(clients.id, tickets.clientId))
-    .where(where);
-
-  const pageNumber = Number.isSafeInteger(page) && page > 1 ? page : 1;
+/** Newest activity first: the last message, or the opening for a ticket nobody wrote on. */
+async function selectRows(actor: TeamSession, where: SQL | undefined, limit: number, offset: number, db: Db): Promise<TicketRow[]> {
   const rows = await db
     .select({
       ticket: {
@@ -147,35 +148,69 @@ export async function listTickets(
         title: tickets.title,
         type: tickets.type,
         status: tickets.status,
+        createdByType: tickets.createdByType,
         lastMessageAt: tickets.lastMessageAt,
         createdAt: tickets.createdAt,
       },
       site: { id: sites.id, name: sites.name },
       client: { id: clients.id, name: clients.name },
       lastAuthor: lastAuthorType,
-      unread: unreadCountSql(me),
+      unread: unreadCountSql(actor.user.id),
     })
     .from(tickets)
     .innerJoin(clients, eq(clients.id, tickets.clientId))
     .leftJoin(sites, eq(sites.id, tickets.siteId))
     .where(where)
     .orderBy(desc(sql`coalesce(${tickets.lastMessageAt}, ${tickets.createdAt})`), desc(tickets.number))
-    .limit(TICKETS_PER_PAGE)
-    .offset((pageNumber - 1) * TICKETS_PER_PAGE);
+    .limit(limit)
+    .offset(offset);
 
   const ids = rows.map((r) => r.ticket.id);
   const [people, tags] = await Promise.all([ticketAssignees(ids, db), labelsByTicket(ids, db)]);
-  return {
-    total: Number(total),
-    rows: rows.map((r) => ({
-      ticket: r.ticket,
-      // A left join with no match still yields an object of nulls.
-      site: r.site && r.site.id ? r.site : null,
-      client: r.client,
-      lastAuthor: r.lastAuthor,
-      unread: r.unread,
-      assignees: people.get(r.ticket.id) ?? [],
-      labels: tags.get(r.ticket.id) ?? [],
-    })),
-  };
+  return rows.map((r) => ({
+    ticket: r.ticket,
+    // A left join with no match still yields an object of nulls.
+    site: r.site && r.site.id ? r.site : null,
+    client: r.client,
+    lastAuthor: r.lastAuthor,
+    unread: r.unread,
+    assignees: people.get(r.ticket.id) ?? [],
+    labels: tags.get(r.ticket.id) ?? [],
+  }));
+}
+
+async function countWhere(where: SQL | undefined, db: Db): Promise<number> {
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(tickets)
+    .innerJoin(clients, eq(clients.id, tickets.clientId))
+    .where(where);
+  return Number(total);
+}
+
+/** One page of the list, newest activity first, with the total over every page. */
+export async function listTickets(
+  actor: TeamSession,
+  filters: TicketFilters,
+  page = 1,
+  db: Db = appDb,
+): Promise<{ rows: TicketRow[]; total: number }> {
+  const where = await listWhere(actor, filters, db);
+  if (where === null) return { rows: [], total: 0 };
+  const pageNumber = Number.isSafeInteger(page) && page > 1 ? page : 1;
+  const total = await countWhere(where, db);
+  const rows = await selectRows(actor, where, TICKETS_PER_PAGE, (pageNumber - 1) * TICKETS_PER_PAGE, db);
+  return { total, rows };
+}
+
+/** The `limit` tickets with the newest activity, in the list's order. */
+export async function latestTickets(actor: TeamSession, filters: TicketFilters, limit: number, db: Db = appDb): Promise<TicketRow[]> {
+  const where = await listWhere(actor, filters, db);
+  return where === null ? [] : selectRows(actor, where, limit, 0, db);
+}
+
+/** How many tickets the list has with these filters. */
+export async function countTickets(actor: TeamSession, filters: TicketFilters, db: Db = appDb): Promise<number> {
+  const where = await listWhere(actor, filters, db);
+  return where === null ? 0 : countWhere(where, db);
 }

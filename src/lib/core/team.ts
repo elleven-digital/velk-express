@@ -1,7 +1,21 @@
 import "server-only";
 import { and, asc, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db as appDb, agency, authTokens, autoAssignUsers, clients, quotes, sessions, users, type Db, type User, type UserRole } from "@/lib/db";
+import {
+  db as appDb,
+  agency,
+  authTokens,
+  autoAssignUsers,
+  clientAssignments,
+  clients,
+  quotes,
+  sessions,
+  users,
+  type Db,
+  type User,
+  type UserRole,
+} from "@/lib/db";
+import { isStaff } from "@/lib/access";
 import { logoAbsoluteUrl } from "@/lib/agency";
 import { authLink, issueAuthToken } from "@/lib/auth/tokens";
 import type { TeamSession } from "@/lib/auth/session";
@@ -74,6 +88,48 @@ async function ownerCount(tx: Db): Promise<number> {
     .from(users)
     .where(and(eq(users.role, "owner"), isNotNull(users.passwordHash)));
   return row?.n ?? 0;
+}
+
+/** A team member as the owner sees them: e-mail, whether the invite is still pending, their clients. */
+export type FullMemberRow = { id: string; name: string; email: string; role: UserRole; pending: boolean; clientIds: string[] };
+
+/** A team member as a manager sees them: name and role only. */
+export type BasicMemberRow = Pick<FullMemberRow, "id" | "name" | "role">;
+
+export type MemberRow = FullMemberRow | BasicMemberRow;
+
+/**
+ * The team, oldest member first. The owner gets everything the Team page shows (a pending invite
+ * is a member without a password yet); a manager names and roles; a collaborator nothing.
+ */
+export async function listMembers(actor: TeamSession, deps: Pick<Deps, "db"> = {}): Promise<Result<MemberRow[]>> {
+  if (!isStaff(actor.user)) return fail("forbidden");
+  const db = deps.db ?? appDb;
+  const members = await db
+    .select({ id: users.id, name: users.name, email: users.email, role: users.role, passwordHash: users.passwordHash })
+    .from(users)
+    .orderBy(asc(users.createdAt), asc(users.email));
+  if (!isOwner(actor)) return ok(members.map((m) => ({ id: m.id, name: m.name, role: m.role })));
+  const links = await db
+    .select({ userId: clientAssignments.userId, clientId: clientAssignments.clientId })
+    .from(clientAssignments)
+    .orderBy(asc(clientAssignments.clientId));
+  const clientIds = new Map<string, string[]>();
+  for (const l of links) {
+    const list = clientIds.get(l.userId) ?? [];
+    list.push(l.clientId);
+    clientIds.set(l.userId, list);
+  }
+  return ok(
+    members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      pending: !m.passwordHash,
+      clientIds: clientIds.get(m.id) ?? [],
+    })),
+  );
 }
 
 /** Creates a pending user (no password), issues an invite link and tries to e-mail it. */

@@ -8,7 +8,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { createSession, resolveTeamSession, TEAM_COOKIE, type CookieStore } from "@/lib/auth/session";
 import { issueAuthToken } from "@/lib/auth/tokens";
 import type { TeamSession } from "@/lib/auth/session";
-import { changeRole, createResetLink, inviteMember, removeMember, resendInvite } from "./team";
+import { changeRole, createResetLink, inviteMember, listMembers, removeMember, resendInvite } from "./team";
 
 // getConfig() is lazy: a database URL, a fixed public address and no SMTP.
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
@@ -354,5 +354,37 @@ describe("removeMember", () => {
   it("is forbidden for a manager and notFound for a stranger", async () => {
     expect(await removeMember(manager, owner.user.id, { db })).toEqual({ ok: false, error: "forbidden" });
     expect(await removeMember(owner, crypto.randomUUID(), { db })).toEqual({ ok: false, error: "notFound" });
+  });
+});
+
+describe("listMembers", () => {
+  it("gives the owner every member with e-mail, invite state and clients, oldest first", async () => {
+    const collab = await makeUser({ name: "Cy", email: "cy@x.com", password: false });
+    const [client] = await db.insert(clients).values({ name: "Acme" }).returning();
+    await db.insert(clientAssignments).values({ clientId: client.id, userId: collab.id });
+    const res = await listMembers(owner, { db });
+    expect(res).toEqual({
+      ok: true,
+      value: [
+        { id: owner.user.id, name: "Ana", email: "ana@x.com", role: "owner", pending: false, clientIds: [] },
+        { id: manager.user.id, name: "Mo", email: "mo@x.com", role: "manager", pending: false, clientIds: [] },
+        { id: collab.id, name: "Cy", email: "cy@x.com", role: "collaborator", pending: true, clientIds: [client.id] },
+      ],
+    });
+  });
+
+  it("gives a manager names and roles only, and refuses a collaborator", async () => {
+    const collab = await makeUser({ name: "Cy", email: "cy@x.com" });
+    const res = await listMembers(manager, { db });
+    expect(res).toEqual({
+      ok: true,
+      value: [
+        { id: owner.user.id, name: "Ana", role: "owner" },
+        { id: manager.user.id, name: "Mo", role: "manager" },
+        { id: collab.id, name: "Cy", role: "collaborator" },
+      ],
+    });
+    expect(JSON.stringify(res)).not.toContain("@x.com");
+    expect(await listMembers(asTeam(collab), { db })).toEqual({ ok: false, error: "forbidden" });
   });
 });
