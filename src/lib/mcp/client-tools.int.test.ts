@@ -334,6 +334,15 @@ describe("portal access", () => {
     return person;
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any -- the question's untyped existing_login */
+  /** The confirm an app sends back: the login exactly as the question showed it. */
+  const shown = (login: Record<string, any>) => ({
+    portal_user_id: login.portal_user_id,
+    status: login.status,
+    will_be_admin: login.will_be_admin,
+  });
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
   it("invites a new e-mail, lists it as invited, resends and cancels — never showing the link", async () => {
     const invited = data(
       await call(owner, "invite_to_portal", { client_id: acme.id, name: "Dora", email: "dora@acme.com", role: "collaborator" }),
@@ -369,7 +378,7 @@ describe("portal access", () => {
     expectNoSecrets();
   });
 
-  it("asks before linking an e-mail that is already a login of another company, and links only with confirm: true", async () => {
+  it("asks before linking an e-mail that is already a login of another company, and links only with the confirm it showed", async () => {
     const [other] = await db.insert(clients).values({ name: "Beta" }).returning();
     const known = await portalLogin("Gil", "gil@beta.com", other.id, true);
 
@@ -391,7 +400,13 @@ describe("portal access", () => {
     expect(before).toHaveLength(0);
 
     const linked = data(
-      await call(owner, "invite_to_portal", { client_id: acme.id, name: "Gil", email: "gil@beta.com", role: "collaborator", confirm: true }),
+      await call(owner, "invite_to_portal", {
+        client_id: acme.id,
+        name: "Gil",
+        email: "gil@beta.com",
+        role: "collaborator",
+        confirm: shown(asked.existing_login),
+      }),
     );
     expect(linked).toMatchObject({ ok: true, outcome: "linked", portal_user_id: known.id, was_pending: false });
     const after = await db
@@ -402,6 +417,33 @@ describe("portal access", () => {
     // Linking an active login mails a notice, never an invite link.
     expect(mailed).toHaveBeenCalledTimes(1);
     expectNoSecrets(false);
+  });
+
+  it("asks again, linking nothing, when the login changed between the question and the yes", async () => {
+    const [other] = await db.insert(clients).values({ name: "Beta" }).returning();
+    const known = await portalLogin("Jo", "jo@beta.com", other.id, false);
+    const args = { client_id: acme.id, name: "Jo", email: "jo@beta.com", role: "collaborator" };
+
+    const asked = data(await call(owner, "invite_to_portal", args));
+    expect(asked.existing_login).toMatchObject({ portal_user_id: known.id, status: "invited" });
+    // While the person thinks, the pending login sets its password.
+    await db.update(clientUsers).set({ passwordHash: "hash" }).where(eq(clientUsers.id, known.id));
+
+    const again = data(await call(owner, "invite_to_portal", { ...args, confirm: shown(asked.existing_login) }));
+    expect(again).toMatchObject({ ok: false, outcome: "confirm", question: en.mcp.portalLinkQuestion });
+    expect(again.existing_login).toMatchObject({ portal_user_id: known.id, status: "active" });
+    expect(again.warnings).toContain(en.mcp.portalLinkActive);
+    const links = await db
+      .select()
+      .from(clientMemberships)
+      .where(and(eq(clientMemberships.clientUserId, known.id), eq(clientMemberships.clientId, acme.id)));
+    expect(links).toHaveLength(0);
+
+    // A confirm for another login than the one shown is the question again too.
+    const wrong = data(
+      await call(owner, "invite_to_portal", { ...args, confirm: { ...shown(again.existing_login), portal_user_id: owner.id } }),
+    );
+    expect(wrong.outcome).toBe("confirm");
   });
 
   it("cancel_portal_invite refuses an active login; set_portal_role and remove_from_portal keep one admin", async () => {

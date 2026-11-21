@@ -969,7 +969,7 @@ statusClosed: "Cerrado",
     staffOnly: "Solo dueños y gestores pueden hacer esto.",
     ownerOnly: "Solo los dueños de la agencia pueden hacer esto.",
     portalLinkQuestion:
-      "Este correo ya tiene acceso al área del cliente, por otras empresas (existing_login). No se guardó nada. Pregunta a la persona si quiere vincular ese acceso a esta empresa; solo si dice que sí, llama de nuevo a invite_to_portal con los mismos argumentos y confirm: true.",
+      "Este correo ya tiene acceso al área del cliente, por otras empresas (existing_login). No se guardó nada. Pregunta a la persona si quiere vincular ese acceso a esta empresa; solo si dice que sí, llama de nuevo a invite_to_portal con los mismos argumentos y confirm con portal_user_id, status y will_be_admin de existing_login.",
     portalLinkActive:
       "Ese acceso está activo: quien definió su contraseña verá esta empresa. Vincúlalo solo si sabes que este correo es de la misma persona.",
     portalInviteNotEmailed:

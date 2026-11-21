@@ -967,7 +967,7 @@ statusClosed: "Closed",
     staffOnly: "Only owners and managers can do this.",
     ownerOnly: "Only the agency's owners can do this.",
     portalLinkQuestion:
-      "This e-mail already has a login in the client area, through other companies (existing_login). Nothing was written. Ask the person whether to link that login to this company; only if they say yes, call invite_to_portal again with the same arguments and confirm: true.",
+      "This e-mail already has a login in the client area, through other companies (existing_login). Nothing was written. Ask the person whether to link that login to this company; only if they say yes, call invite_to_portal again with the same arguments and confirm set to existing_login's portal_user_id, status and will_be_admin.",
     portalLinkActive:
       "That login is active: whoever set its password will see this company. Link it only if you know this e-mail belongs to the same person.",
     portalInviteNotEmailed:

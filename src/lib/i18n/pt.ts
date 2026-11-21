@@ -969,7 +969,7 @@ statusClosed: "Concluído",
     staffOnly: "Só donos e gestores podem fazer isso.",
     ownerOnly: "Só os donos da agência podem fazer isso.",
     portalLinkQuestion:
-      "Este e-mail já tem login na área do cliente, por outras empresas (existing_login). Nada foi gravado. Pergunte à pessoa se deve vincular esse login a esta empresa; só se ela disser que sim, chame invite_to_portal de novo com os mesmos argumentos e confirm: true.",
+      "Este e-mail já tem login na área do cliente, por outras empresas (existing_login). Nada foi gravado. Pergunte à pessoa se deve vincular esse login a esta empresa; só se ela disser que sim, chame invite_to_portal de novo com os mesmos argumentos e confirm com portal_user_id, status e will_be_admin de existing_login.",
     portalLinkActive:
       "Esse login está ativo: quem definiu a senha dele vai ver esta empresa. Vincule só se souber que este e-mail é da mesma pessoa.",
     portalInviteNotEmailed:

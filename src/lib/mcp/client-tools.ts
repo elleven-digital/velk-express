@@ -540,31 +540,42 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "invite_to_portal",
     {
       description:
-        "Owners and managers: gives a person access to the client's area. A new e-mail gets a login and an invite by e-mail (the link itself never comes back here). An e-mail that already has a login through other companies is never linked silently: the answer is a question (outcome confirm, ok false, nothing written) to put to the person; only if they say yes, call again with confirm: true. The company's first login is always an admin. Only when the connected person asks.",
+        "Owners and managers: gives a person access to the client's area. A new e-mail gets a login and an invite by e-mail (the link itself never comes back here). An e-mail that already has a login through other companies is never linked silently: the answer is a question (outcome confirm, ok false, nothing written) to put to the person; only if they say yes, call again with the same arguments and confirm copied from that answer's existing_login (portal_user_id, status, will_be_admin). If the login changed since (it became active, or the company's first admin changed), the answer is the question again, nothing linked: ask again. The company's first login is always an admin. Only when the connected person asks.",
       inputSchema: z.object({
         client_id: CLIENT_ID,
         name: z.string().min(1).max(200),
         email: z.string().min(3).max(254),
         role: z.enum(["admin", "collaborator"]).describe("admin also manages the company's logins and sees its payments."),
         confirm: z
-          .boolean()
+          .object({
+            portal_user_id: z.string(),
+            status: z.enum(["active", "invited"]),
+            will_be_admin: z.boolean(),
+          })
           .optional()
-          .describe("true only after the person said yes to linking the existing login the previous answer described."),
+          .describe(
+            "Only after the person said yes to linking the existing login: portal_user_id, status and will_be_admin exactly as the previous answer's existing_login showed them.",
+          ),
       }),
       annotations: writeAnnotations({ destructive: false }),
     },
     teamTool(scope, "invite_to_portal", "staff", async (actor, args) => {
-      const input = { name: args.name, email: args.email, role: args.role };
-      let result = await invitePortalUser(actor, args.client_id, input);
-      // Confirmed: link the login as it is now; one that changed in between (became active, or the
-      // company got its first admin) makes the core ask again.
-      if (args.confirm && result.ok && result.value.outcome === "confirm" && result.value.existing) {
-        const { clientUserId, existing } = result.value;
-        result = await invitePortalUser(actor, args.client_id, {
-          ...input,
-          confirm: { clientUserId, active: existing.active, willBeAdmin: existing.willBeAdmin },
-        });
-      }
+      // A confirm carries the login as the person was shown it; the core links only while it is still
+      // that way (same login, same active flag, same admin outcome), and asks again otherwise.
+      const result = await invitePortalUser(actor, args.client_id, {
+        name: args.name,
+        email: args.email,
+        role: args.role,
+        ...(args.confirm
+          ? {
+              confirm: {
+                clientUserId: args.confirm.portal_user_id,
+                active: args.confirm.status === "active",
+                willBeAdmin: args.confirm.will_be_admin,
+              },
+            }
+          : {}),
+      });
       if (!result.ok) return refused(actor, result.error, "portalUsers");
       const value = result.value;
       const t = dictFor(actor);
