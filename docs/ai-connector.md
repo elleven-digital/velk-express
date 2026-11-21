@@ -163,7 +163,7 @@ Money: amounts in answers are in cents, with their currency. Amounts sent as `*_
 |---|---|---|
 | `update_agency` | Owner | Changes the agency's name, currency, language and time zone. |
 | `set_collaborator_visibility` | Owner | Sets what collaborators can see. |
-| `set_auto_assign` | Owner and manager | Turns the agency's ticket rotation on or off and sets who takes part. |
+| `set_auto_assign` | Owner | Turns the agency's ticket rotation on or off and sets who takes part. |
 
 ## Safety
 

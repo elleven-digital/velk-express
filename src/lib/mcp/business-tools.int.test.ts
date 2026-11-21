@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { resetTestDb } from "@/test/db";
 import {
@@ -407,13 +407,20 @@ describe("settings", () => {
     expect([row.collabClientScope, row.collabTicketScope, row.collabSeesUnassigned]).toEqual(["all", "assigned", true]);
   });
 
-  it("set_auto_assign keeps the people when only enabled is given, and is staff's", async () => {
-    data(await call(manager, "set_auto_assign", { enabled: true, user_ids: [collab.id, manager.id] }));
-    const off = data(await call(manager, "set_auto_assign", { enabled: false }));
+  it("set_auto_assign keeps the people when only enabled is given, and is the owner's", async () => {
+    data(await call(owner, "set_auto_assign", { enabled: true, user_ids: [collab.id, manager.id] }));
+    const off = data(await call(owner, "set_auto_assign", { enabled: false }));
     expect(off.enabled).toBe(false);
     expect([...off.user_ids].sort()).toEqual([collab.id, manager.id].sort());
     const on = data(await call(owner, "set_auto_assign", { enabled: true }));
     expect(on.enabled).toBe(true);
-    expect(sentence(await call(collab, "set_auto_assign", { enabled: true }))).toBe(en.mcp.staffOnly);
+
+    // As in the panel, managers and collaborators can't change the agency's rotation.
+    expect(sentence(await call(manager, "set_auto_assign", { enabled: false, user_ids: [manager.id] }))).toBe(pt.mcp.ownerOnly);
+    expect(sentence(await call(collab, "set_auto_assign", { enabled: false }))).toBe(en.mcp.ownerOnly);
+    const [row] = await db.select().from(agency);
+    expect(row.autoAssign).toBe(true);
+    const people = await db.select().from(autoAssignUsers).where(isNull(autoAssignUsers.clientId));
+    expect(people.map((p) => p.userId).sort()).toEqual([collab.id, manager.id].sort());
   });
 });

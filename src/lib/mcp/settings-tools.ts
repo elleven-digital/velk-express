@@ -23,7 +23,7 @@ import { canonicalTimeZone } from "@/lib/time-zone";
  * The agency and its settings, with the panel's roles. `get_agency` is where
  * an app starts: who is connected, with which role, and the agency's language,
  * currency and time zone. The agency's data and what collaborators see are the
- * owner's; the agency's rotation is owners' and managers'. The cores replace
+ * owner's, and so is the agency's rotation, as in the panel. The cores replace
  * every field, so the tools read the current values and change only what is
  * given. Left out: the logo (a file), the public address (changing it from
  * here would cut this very connection) and the payment providers.
@@ -134,14 +134,14 @@ export const registerSettingsTools: ToolRegistrar = (server, scope) => {
     "set_auto_assign",
     {
       description:
-        "Owners and managers: the agency-wide rotation that assigns support tickets opened by clients, one person at a time (a client's own rotation, set_client_rotation, overrides it). enabled turns it on or off; user_ids replaces who takes part (left out: keeps the current people). It only stays on with at least one person.",
+        "Owners: the agency-wide rotation that assigns support tickets opened by clients, one person at a time (a client's own rotation, set_client_rotation, overrides it). enabled turns it on or off; user_ids replaces who takes part (left out: keeps the current people). It only stays on with at least one person.",
       inputSchema: z.object({
         enabled: z.boolean(),
         user_ids: z.array(z.string()).max(200).optional().describe("Team member ids (from list_team)."),
       }),
       annotations: writeAnnotations({ destructive: false, idempotent: true }),
     },
-    teamTool(scope, "set_auto_assign", "staff", async (actor, args) => {
+    teamTool(scope, "set_auto_assign", "owner", async (actor, args) => {
       const userIds = args.user_ids ?? (await getAgencyRotation()).userIds;
       const result = await updateAutoAssign(actor, { enabled: args.enabled, userIds });
       if (!result.ok) return refused(actor, result.error, "settings");
