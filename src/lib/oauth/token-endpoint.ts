@@ -1,4 +1,5 @@
 import "server-only";
+import { readCappedBody } from "@/lib/oauth/read-body";
 import { OAUTH_CORS_HEADERS } from "@/lib/oauth/rules";
 import {
   exchangeAuthorizationCode,
@@ -43,26 +44,6 @@ export function tooManyRequests(): Response {
   );
 }
 
-async function readBody(request: Request): Promise<string | null> {
-  const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > TOKEN_BODY_MAX_BYTES) return null;
-  if (!request.body) return "";
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > TOKEN_BODY_MAX_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return new TextDecoder().decode(Buffer.concat(chunks));
-}
-
 function tokens(set: TokenSet): Response {
   return Response.json(
     {
@@ -94,7 +75,7 @@ async function exchange(request: Request, now: Date | undefined): Promise<Respon
   if (type.split(";")[0].trim().toLowerCase() !== "application/x-www-form-urlencoded") {
     return error("invalid_request");
   }
-  const text = await readBody(request);
+  const text = await readCappedBody(request, TOKEN_BODY_MAX_BYTES);
   if (text === null) return error("invalid_request");
   const body = new URLSearchParams(text);
 

@@ -992,5 +992,7 @@ statusClosed: "Concluído",
       "Nenhum e-mail foi enviado (o e-mail não está configurado ou o envio falhou). O convite está criado: copie o link na aba Acesso do cliente no painel (access_url), em Reenviar convite, e envie você mesmo.",
     teamInviteNotEmailed:
       "Nenhum e-mail foi enviado (o e-mail não está configurado ou o envio falhou). O convite está criado: copie o link na página Equipe do painel (team_url), em Reenviar convite, e envie você mesmo.",
+    clientDataSavedPlanNot:
+      "Os dados do cliente (nome, e-mail, telefone, notas) foram salvos; só o plano de suporte não foi alterado.",
   },
 };

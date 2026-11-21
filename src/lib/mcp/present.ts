@@ -1,3 +1,4 @@
+import { isLiveStatus } from "@/lib/charge-utils";
 import type { ChargeView } from "@/lib/core/charges";
 import type { TicketRow } from "@/lib/core/ticket-list";
 import type { TeamTicketView } from "@/lib/core/ticket-view";
@@ -99,6 +100,7 @@ export function presentTicketFile(f: FileItem, appUrl: string) {
   };
 }
 
+/** The payment page only while the charge can still be paid (not paid nor canceled), as the panel shows it. */
 export function presentCharge(charge: ChargeView) {
   return {
     id: charge.id,
@@ -107,7 +109,7 @@ export function presentCharge(charge: ChargeView) {
     provider: charge.provider,
     amount_cents: charge.amountCents,
     currency: charge.currency,
-    pay_url: charge.payUrl,
+    pay_url: isLiveStatus(charge.status) ? charge.payUrl : null,
   };
 }
 

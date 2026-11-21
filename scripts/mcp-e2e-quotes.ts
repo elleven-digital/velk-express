@@ -75,9 +75,10 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
   const free = data(
     await call(ownerToken, "create_charge", { source: "none", client_id: client.id, label: "E2E — domain", amount_cents: 9000 }),
   );
-  data(await call(ownerToken, "mark_charge_paid", { charge_id: free.charge?.id }));
+  const settled = data(await call(ownerToken, "mark_charge_paid", { charge_id: free.charge?.id }));
   const [paid] = await sql`select status, paid_at from charges where id = ${free.charge?.id}`;
   check("mark_charge_paid settles the manual record", paid?.status === "paid" && paid.paid_at !== null, paid);
+  check("a paid charge has no payment page", settled.charge?.pay_url === null, settled.charge);
 
   section("Quotes and charges — manager");
   const managerToken = (await connect(manager.id)).access_token;

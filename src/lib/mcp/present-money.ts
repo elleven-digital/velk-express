@@ -14,9 +14,9 @@ export function quoteUrl(appUrl: string, quoteId: string): string {
   return `${panelBase(appUrl)}/admin/quotes/${quoteId}`;
 }
 
-/** The page the client approves the quote on: it exists once the quote was sent. */
+/** The page the client approves the quote on: from when the quote is sent until it is archived, as the panel shows it. */
 export function quotePublicUrl(appUrl: string, quote: Pick<Quote, "status" | "token">): string | null {
-  return quote.status === "draft" ? null : `${panelBase(appUrl)}/q/${quote.token}`;
+  return quote.status === "draft" || quote.status === "archived" ? null : `${panelBase(appUrl)}/q/${quote.token}`;
 }
 
 /** An item's sites and hours, in the tool's argument names. */

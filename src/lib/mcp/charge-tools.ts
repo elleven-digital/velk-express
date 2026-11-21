@@ -135,7 +135,7 @@ export const registerChargeTools: ToolRegistrar = (server, scope) => {
         kind: z.enum(["one_time", "subscription"]).optional().describe("none: one_time (default) or subscription (monthly)."),
         provider: z.enum(PROVIDERS).optional(),
       }),
-      annotations: writeAnnotations({ destructive: false }),
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "create_charge", "staff", async (actor, args) => {
       // A quote's charge is the owner's, as the panel's quote page: the role refusal, not the core's generic one.
@@ -157,7 +157,7 @@ export const registerChargeTools: ToolRegistrar = (server, scope) => {
       description:
         "Owners and managers: cancels a charge — its payment page stops working and a subscription is canceled at the provider; an hour package bought in the portal and not paid goes too. A paid charge can't be canceled; canceling a canceled one changes nothing (changed false). Only when the person asks.",
       inputSchema: z.object({ charge_id: CHARGE_ID }),
-      annotations: { ...writeAnnotations({ destructive: true, idempotent: true }), openWorldHint: true },
+      annotations: writeAnnotations({ destructive: true, idempotent: true, openWorld: true }),
     },
     teamTool(scope, "cancel_charge", "staff", async (actor, args) => {
       const result = await cancelCharge(actor, args.charge_id);
@@ -177,7 +177,7 @@ export const registerChargeTools: ToolRegistrar = (server, scope) => {
       description:
         "Owners and managers: records that the client paid a pending one-time charge outside the payment page (Pix, transfer, cash); the page stops working and an hour package waiting for it counts. Only when the person asks.",
       inputSchema: z.object({ charge_id: CHARGE_ID }),
-      annotations: { ...writeAnnotations({ destructive: false, idempotent: true }), openWorldHint: true },
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "mark_charge_paid", "staff", async (actor, args) => {
       const result = await markChargePaid(actor, args.charge_id);

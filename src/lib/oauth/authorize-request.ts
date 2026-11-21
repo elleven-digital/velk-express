@@ -12,7 +12,7 @@ import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * Checking the authorization request (`/oauth/authorize`), used by the page
- * and again by the Authorize and Cancel actions, which never trust what the
+ * and again by the Authorize and Decline actions, which never trust what the
  * page showed.
  *
  * Order matters. Until the app is recognised and the redirect URI is one of

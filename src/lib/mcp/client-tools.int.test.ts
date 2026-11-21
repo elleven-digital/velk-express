@@ -30,6 +30,17 @@ vi.mock("@/lib/mail/send", async (importOriginal) => ({
   sendMail: mailed,
 }));
 
+// Lets a test make the support plan's write fail after the client's data was saved.
+const supportFails = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/core/clients", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/core/clients")>();
+  return {
+    ...real,
+    updateSupport: (...args: Parameters<typeof real.updateSupport>) =>
+      supportFails.on ? Promise.resolve({ ok: false as const, error: "invalid" }) : real.updateSupport(...args),
+  };
+});
+
 // The cores and the connector read the app database: point it at the test one.
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 process.env.APP_URL = "https://agency.test";
@@ -213,6 +224,29 @@ describe("update_client", () => {
     expect(client.supportMonthlyCents).toBe(100000);
     expect(after.find((s) => s.id === inPlan.id)?.includedInSupport).toBe(false);
     expect(after.find((s) => s.id === outOfPlan.id)?.includedInSupport).toBe(true);
+  });
+
+  it("says the client's data was saved when the plan is refused after it", async () => {
+    supportFails.on = true;
+    try {
+      const res = await call(manager, "update_client", { client_id: acme.id, phone: "555-2000", monthly_amount: "1.500,00" });
+      expect(res.isError).toBe(true);
+      expect(sentence(res)).toBe(`${pt.clients.errors.invalid} ${pt.mcp.clientDataSavedPlanNot}`);
+    } finally {
+      supportFails.on = false;
+    }
+    const { client } = await reload();
+    expect(client.phone).toBe("555-2000");
+    expect(client.supportMonthlyCents).toBe(100000);
+
+    // With only plan fields, the refusal is the panel's sentence alone.
+    supportFails.on = true;
+    try {
+      const res = await call(manager, "update_client", { client_id: acme.id, monthly_amount: "1.500,00" });
+      expect(sentence(res)).toBe(pt.clients.errors.invalid);
+    } finally {
+      supportFails.on = false;
+    }
   });
 
   it("is refused to collaborators", async () => {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { chunkedRequest } from "@/test/chunked-request";
 
 vi.mock("@/lib/oauth/store", () => ({
   isKnownClient: vi.fn(),
@@ -75,6 +76,15 @@ describe("POST /oauth/token", () => {
     expect(response.status).toBe(400);
     expect((await response.json()).error).toBe("invalid_request");
     expect(store.refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("stops reading a chunked body past 16 KB", async () => {
+    const { request, pulled } = chunkedRequest("https://agency.test/oauth/token", 1024, 1000);
+    request.headers.set("Content-Type", "application/x-www-form-urlencoded");
+    const response = await handleTokenRequest(request);
+    expect(response.status).toBe(400);
+    expect(pulled.cancelled).toBe(true);
+    expect(pulled.chunks).toBeLessThan(30);
   });
 
   it("never fetches anything for an unknown app: invalid_client", async () => {

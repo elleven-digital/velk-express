@@ -49,9 +49,11 @@ import {
   PEOPLE_TEXT,
   READ_ONLY,
   recordWrite,
+  refusalOf,
   refused,
   teamTool,
   toolData,
+  toolError,
   writeAnnotations,
   written,
   type ToolRegistrar,
@@ -355,12 +357,17 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
           notes: args.notes === undefined ? client.notes : args.notes,
         });
         if (!result.ok) return refused(actor, result.error, "clients");
+        recordWrite(scope, actor, "update_client");
       }
       if (given(support)) {
         const result = await updateSupport(actor, client.id, mergeSupport({ client, sites: sitesRes.value }, support));
-        if (!result.ok) return refused(actor, result.error, "clients");
+        if (!result.ok) {
+          // The client's data is already saved: say so, or the app would think nothing changed.
+          if (!given(data)) return refused(actor, result.error, "clients");
+          return toolError(`${refusalOf(actor, result.error, "clients")} ${dictFor(actor).mcp.clientDataSavedPlanNot}`);
+        }
+        if (!given(data)) recordWrite(scope, actor, "update_client");
       }
-      if (given(data) || given(support)) recordWrite(scope, actor, "update_client");
       const detail = await clientDetail(actor, client.id);
       if (!detail.ok) return refused(actor, detail.error, "clients");
       return written({ client: presentClientDetail(detail.value, await getAppUrl()) });
@@ -557,7 +564,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
             "Only after the person said yes to linking the existing login: portal_user_id, status and will_be_admin exactly as the previous answer's existing_login showed them.",
           ),
       }),
-      annotations: writeAnnotations({ destructive: false }),
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "invite_to_portal", "staff", async (actor, args) => {
       // A confirm carries the login as the person was shown it; the core links only while it is still
@@ -626,7 +633,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
       description:
         "Owners and managers: e-mails a new invite link (the old one stops working) to a login of the client that hasn't set a password yet (status invited in get_portal_access). The link itself never comes back here.",
       inputSchema: z.object({ client_id: CLIENT_ID, portal_user_id: PORTAL_USER_ID }),
-      annotations: writeAnnotations({ destructive: false }),
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "resend_portal_invite", "staff", async (actor, args) => {
       const result = await resendPortalInvite(actor, args.client_id, args.portal_user_id);

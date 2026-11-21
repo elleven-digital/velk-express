@@ -91,7 +91,7 @@ export const registerTeamTools: ToolRegistrar = (server, scope) => {
         email: z.string().min(3).max(254),
         role: ROLE.optional().describe("owner, manager or collaborator (default)."),
       }),
-      annotations: writeAnnotations({ destructive: false }),
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "invite_member", "owner", async (actor, args) => {
       const result = await inviteMember(actor, { name: args.name, email: args.email, role: args.role ?? "collaborator" });

@@ -24,14 +24,16 @@ export const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /**
  * Annotations of writing tools. `destructive`: removes or takes something
  * away — apps ask for confirmation more carefully. `idempotent`: repeating
- * the call changes nothing after the first.
+ * the call changes nothing after the first (and isn't refused). `openWorld`:
+ * the call reaches outside the panel — it e-mails someone or acts at a
+ * payment provider.
  */
-export function writeAnnotations(opts: { destructive: boolean; idempotent?: boolean }) {
+export function writeAnnotations(opts: { destructive: boolean; idempotent?: boolean; openWorld?: boolean }) {
   return {
     readOnlyHint: false,
     destructiveHint: opts.destructive,
     idempotentHint: opts.idempotent ?? false,
-    openWorldHint: false,
+    openWorldHint: opts.openWorld ?? false,
   } as const;
 }
 
@@ -112,9 +114,14 @@ export type ErrorArea = "tickets" | "team" | "clients" | "hours" | "portalUsers"
  * answer another area's sentence by default. A key the area doesn't know
  * reads as the area's generic sentence.
  */
-export function refused(actor: TeamSession, error: string, area: ErrorArea): CallToolResult {
+/** The panel's sentence for a core error key, in the person's language. */
+export function refusalOf(actor: TeamSession, error: string, area: ErrorArea): string {
   const errors = dictFor(actor)[area].errors as Record<string, string> & { generic: string };
-  return toolError(lookup(errors, error) ?? errors.generic);
+  return lookup(errors, error) ?? errors.generic;
+}
+
+export function refused(actor: TeamSession, error: string, area: ErrorArea): CallToolResult {
+  return toolError(refusalOf(actor, error, area));
 }
 
 /**

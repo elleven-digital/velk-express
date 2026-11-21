@@ -17,7 +17,7 @@ The address is your public address plus `/mcp`, for example `https://panel.examp
 
 ## Connect an app
 
-In every app, you paste the address, the app opens a "Authorize access" page of your panel, you sign in if needed, and you approve. That is all.
+In every app, you paste the address, the app opens an **Authorize access** page of your panel, you sign in if needed, and you approve. That is all.
 
 ### Claude (web and desktop)
 

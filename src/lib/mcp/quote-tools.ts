@@ -217,7 +217,7 @@ export const registerQuoteTools: ToolRegistrar = (server, scope) => {
       description:
         "Owners: marks the quote as sent and e-mails the client (or prospect) the link to its page, where they approve it. Only draft or sent quotes (sending again re-sends the e-mail). The answer says whether an e-mail went out; when none did, the quote is sent all the same and public_url is the link to pass on. Only when the person asks.",
       inputSchema: z.object({ quote_id: QUOTE_ID }),
-      annotations: writeAnnotations({ destructive: false }),
+      annotations: writeAnnotations({ destructive: false, openWorld: true }),
     },
     teamTool(scope, "send_quote", "owner", async (actor, args) => {
       const result = await sendQuote(actor, args.quote_id);

@@ -4,6 +4,7 @@ import {
   parseRegistration,
   registrationResponse,
 } from "@/lib/oauth/registration";
+import { readCappedBody } from "@/lib/oauth/read-body";
 import { OAUTH_CORS_HEADERS } from "@/lib/oauth/rules";
 import { registerClient } from "@/lib/oauth/store";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -34,14 +35,8 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: "too_many_requests" }, 429, { "Retry-After": "60" });
   }
 
-  const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > REGISTRATION_MAX_BYTES) {
-    return refuse("invalid_client_metadata", REGISTRATION_ERRORS.tooLarge);
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > REGISTRATION_MAX_BYTES) {
-    return refuse("invalid_client_metadata", REGISTRATION_ERRORS.tooLarge);
-  }
+  const text = await readCappedBody(request, REGISTRATION_MAX_BYTES);
+  if (text === null) return refuse("invalid_client_metadata", REGISTRATION_ERRORS.tooLarge);
   let body: unknown;
   try {
     body = JSON.parse(text);

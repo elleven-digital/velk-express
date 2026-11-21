@@ -65,7 +65,7 @@ describe("client id metadata documents", () => {
 });
 
 describe("addresses", () => {
-  it("treats loopback, private, link-local, mapped and NAT64 forms as internal", () => {
+  it("treats loopback, private, link-local, benchmarking, IETF, mapped, 6to4 and NAT64 forms as internal", () => {
     for (const address of [
       "127.0.0.1",
       "10.1.2.3",
@@ -79,6 +79,13 @@ describe("addresses", () => {
       "fe80::1",
       "::ffff:127.0.0.1",
       "64:ff9b::a00:1",
+      "198.18.0.1",
+      "198.19.255.255",
+      "192.0.0.8",
+      "2002:7f00:1::",
+      "2002:c0a8:101::1",
+      "2002:a9fe:a9fe::1",
+      "2002:c612:1::",
       "not-an-ip",
     ]) {
       expect(isPrivateAddress(address), address).toBe(true);
@@ -88,6 +95,10 @@ describe("addresses", () => {
   it("lets public addresses through", () => {
     expect(isPrivateAddress("93.184.216.34")).toBe(false);
     expect(isPrivateAddress("2606:4700:4700::1111")).toBe(false);
+    expect(isPrivateAddress("198.20.0.1")).toBe(false);
+    expect(isPrivateAddress("192.0.1.1")).toBe(false);
+    // 6to4 of a public IPv4 (93.184.216.34).
+    expect(isPrivateAddress("2002:5db8:d822::1")).toBe(false);
   });
 });
 

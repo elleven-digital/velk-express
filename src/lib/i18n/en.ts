@@ -990,5 +990,7 @@ statusClosed: "Closed",
       "No e-mail went out (e-mail is not set up, or sending failed). The invite stands: copy its link in the client's Access tab in the panel (access_url) with Resend invite, and send it yourself.",
     teamInviteNotEmailed:
       "No e-mail went out (e-mail is not set up, or sending failed). The invite stands: copy its link on the panel's Team page (team_url) with Resend invite, and send it yourself.",
+    clientDataSavedPlanNot:
+      "The client's data (name, e-mail, phone, notes) was saved; only the support plan wasn't changed.",
   },
 };

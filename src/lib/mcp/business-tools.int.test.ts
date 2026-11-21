@@ -160,6 +160,18 @@ describe("tools/list", () => {
     expect(names).toHaveLength(59);
     expect(names).toEqual([...all].sort());
   });
+
+  it("marks the tools that e-mail people or reach a payment provider as open-world", async () => {
+    const message = await rpc(owner, "tools/list", {});
+    type Listed = { name: string; annotations?: { openWorldHint?: boolean; idempotentHint?: boolean } };
+    const tools = (message.result as { tools: Listed[] }).tools;
+    const openWorld = tools.filter((t) => t.annotations?.openWorldHint).map((t) => t.name).sort();
+    expect(openWorld).toEqual(
+      ["cancel_charge", "create_charge", "invite_member", "invite_to_portal", "mark_charge_paid", "resend_portal_invite", "send_quote"].sort(),
+    );
+    // A second mark_charge_paid is refused, so it isn't idempotent.
+    expect(tools.find((t) => t.name === "mark_charge_paid")?.annotations?.idempotentHint).toBe(false);
+  });
 });
 
 describe("quotes", () => {
@@ -218,6 +230,15 @@ describe("quotes", () => {
     expect(sentence(locked)).toBe(en.quotes.errors.quoteLocked);
     const again = data(await call(owner, "archive_quote", { quote_id: id }));
     expect(again.changed).toBe(false);
+  });
+
+  it("an archived quote has no public link, as in the panel", async () => {
+    mailed.mockResolvedValue({ sent: false });
+    const id = await draftQuote();
+    data(await call(owner, "send_quote", { quote_id: id }));
+    expect(data(await call(owner, "get_quote", { quote_id: id })).quote.public_url).toMatch(/^https:\/\/agency\.test\/q\//);
+    data(await call(owner, "archive_quote", { quote_id: id }));
+    expect(data(await call(owner, "get_quote", { quote_id: id })).quote.public_url).toBeNull();
   });
 
   it("send_quote without e-mail says the quote is marked sent and no e-mail went out", async () => {
@@ -316,12 +337,12 @@ describe("charges", () => {
     expect(listed.payment_providers).toEqual({ stripe: true, mercadopago: true });
 
     const paid = data(await call(manager, "mark_charge_paid", { charge_id: one.charge.id }));
-    expect(paid.charge).toMatchObject({ status: "paid" });
+    expect(paid.charge).toMatchObject({ status: "paid", pay_url: null });
     expect(paid.charge.paid_at).toBeTruthy();
     const notPending = await call(manager, "mark_charge_paid", { charge_id: plan.charge.id });
     expect(sentence(notPending)).toBe(pt.charges.errors.chargeNotPending);
     const canceled = data(await call(manager, "cancel_charge", { charge_id: plan.charge.id }));
-    expect(canceled).toMatchObject({ changed: true, charge: { status: "canceled" } });
+    expect(canceled).toMatchObject({ changed: true, charge: { status: "canceled", pay_url: null } });
     expect(sentence(await call(manager, "cancel_charge", { charge_id: one.charge.id }))).toBe(pt.charges.errors.alreadyPaid);
     expect(data(await call(owner, "list_charges", { status: "paid" })).charges.map((c: { id: string }) => c.id)).toEqual([one.charge.id]);
   });

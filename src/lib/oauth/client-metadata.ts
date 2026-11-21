@@ -166,7 +166,7 @@ function octets(ipv4: string): number[] {
 }
 
 function privateIpv4(ipv4: string): boolean {
-  const [a, b] = octets(ipv4);
+  const [a, b, c] = octets(ipv4);
   return (
     a === 0 ||
     a === 10 ||
@@ -174,7 +174,9 @@ function privateIpv4(ipv4: string): boolean {
     (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0 && c === 0) ||
     (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
     a >= 224
   );
 }
@@ -198,9 +200,9 @@ function groups(ipv6: string): number[] | null {
 
 /**
  * Internal, local-network or special address? Loopback, private ranges,
- * 100.64/10, link-local, 0/8, multicast and reserved, `::`, `::1`,
- * fc00::/7, fe80::/10, IPv6 multicast, IPv4-compatible, NAT64 and
- * IPv4-mapped forms of those. Anything that doesn't parse as an IP counts as
+ * 100.64/10, link-local, 0/8, 192.0.0/24 (IETF), 198.18/15 (benchmarking),
+ * multicast and reserved, `::`, `::1`, fc00::/7, fe80::/10, IPv6 multicast,
+ * IPv4-compatible, NAT64, and IPv4-mapped and 6to4 forms of those. Anything that doesn't parse as an IP counts as
  * internal: when in doubt, don't fetch.
  */
 export function isPrivateAddress(address: string): boolean {
@@ -215,6 +217,10 @@ export function isPrivateAddress(address: string): boolean {
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return true;
   if (zeroUpTo(5) && g[5] === 0xffff) {
     return privateIpv4([g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff].join("."));
+  }
+  // 6to4 (2002::/16) carries an IPv4 in its next 32 bits, and a relay may route to it.
+  if (g[0] === 0x2002) {
+    return privateIpv4([g[1] >> 8, g[1] & 0xff, g[2] >> 8, g[2] & 0xff].join("."));
   }
   return (
     (g[0] & 0xfe00) === 0xfc00 ||
