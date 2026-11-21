@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { resetTestDb } from "@/test/db";
 import type { Db } from "@/lib/db/client";
 import { authTokens, clientMemberships, clientUsers, clients, sessions, users } from "@/lib/db";
+import { createAuthorizationCode, exchangeAuthorizationCode, listActiveConnections, registerClient } from "@/lib/oauth/store";
+import { pkceChallengeOf } from "@/lib/oauth/rules";
 import { hashPassword, verifyPassword } from "./password";
 import { issueAuthToken, tokenUserType } from "./tokens";
 import {
@@ -81,6 +83,41 @@ describe("completePasswordToken", () => {
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     expect(u.name).toBe("Ana"); // a reset never renames
     expect(await verifyPassword("brand-new-pass", u.passwordHash!)).toBe(true);
+  });
+
+  it("reset: revokes every AI-app connection of the user, and only theirs", async () => {
+    const other = (await db.insert(users).values({ name: "Z", email: "z@x.com" }).returning({ id: users.id }))[0].id;
+    const redirectUri = "https://claude.ai/api/mcp/auth_callback";
+    const verifier = "v".repeat(43);
+    const app = await registerClient({ name: "Claude", redirectUris: [redirectUri] }, new Date(), db);
+    async function connect(owner: string) {
+      const code = await createAuthorizationCode({
+        userId: owner,
+        clientId: app.clientId,
+        redirectUri,
+        codeChallenge: pkceChallengeOf(verifier),
+        resource: "https://a.test/mcp",
+        db,
+      });
+      const exchanged = await exchangeAuthorizationCode({
+        code,
+        clientId: app.clientId,
+        redirectUri,
+        codeVerifier: verifier,
+        resource: null,
+        db,
+      });
+      expect(exchanged.ok).toBe(true);
+    }
+    await connect(userId);
+    await connect(userId);
+    await connect(other);
+    expect(await listActiveConnections(userId, new Date(), db)).toHaveLength(2);
+
+    const raw = await issueAuthToken("reset", "agency", userId, db);
+    expect(await completePasswordToken({ token: raw, password: "brand-new-pass" }, db)).not.toBeNull();
+    expect(await listActiveConnections(userId, new Date(), db)).toEqual([]);
+    expect(await listActiveConnections(other, new Date(), db)).toHaveLength(1);
   });
 
   it.each([

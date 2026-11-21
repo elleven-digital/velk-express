@@ -12,6 +12,7 @@ import {
 } from "@/lib/db";
 import { hashPassword, verifyPassword } from "./password";
 import { consumeAuthToken, peekAuthToken, type TokenOwner } from "./tokens";
+import { revokeAllConnections } from "@/lib/oauth/store";
 
 export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
@@ -105,7 +106,8 @@ export class TokenUserMissingError extends Error {
 
 /**
  * Spends an invite or reset token and sets the password, in one transaction, on the table of
- * the token's side. An invite may also set the name; a reset signs that user out everywhere.
+ * the token's side. An invite may also set the name; a reset signs that user out everywhere
+ * and, on the team side, revokes their AI-app connections.
  * Every other unused token of that user (same type) is cancelled too.
  * Returns null (changing nothing, and without hashing) when the token cannot be used.
  * Throws TokenUserMissingError when the user vanished after the check: nothing is changed and
@@ -155,6 +157,8 @@ export async function completePasswordToken(
       await tx
         .delete(sessions)
         .where(and(eq(sessions.userType, owner.userType), eq(sessions.userId, owner.userId)));
+      // AI-app connections act as the team member: a new password cuts them off too.
+      if (owner.userType === "agency") await revokeAllConnections(owner.userId, undefined, txDb);
     }
     return owner;
   });
