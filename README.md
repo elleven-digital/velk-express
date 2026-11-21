@@ -6,7 +6,8 @@ Velk Express is a self-hosted, open-source support panel for web agencies. One i
 - **tickets** with rich-text messages, attachments, assignees, labels and unread tracking;
 - **hours**: a monthly allowance per client, extra hours the client can buy, or internal-only tracking;
 - **quotes** with a public approval page, and a "Close & execute" step that creates the client, sites, support plan and tickets for you;
-- **charges**, one-time or monthly, paid through Stripe and/or Mercado Pago with your own keys, or kept as manual records.
+- **charges**, one-time or monthly, paid through Stripe and/or Mercado Pago with your own keys, or kept as manual records;
+- an **AI connector**, so your team can use the panel from Claude, ChatGPT or any MCP app.
 
 It runs as a single Docker image, `ghcr.io/elleven-digital/velk-express`, next to a PostgreSQL database. Your data stays on your server.
 
@@ -51,6 +52,7 @@ Pick the guide for where you want to run it:
 - [Configuration](docs/configuration.md): every environment variable, e-mail, S3 storage.
 - [Reverse proxy](docs/reverse-proxy.md): if you put your own proxy in front of the app.
 - [Payments](docs/payments.md): Stripe and Mercado Pago.
+- [AI connector](docs/ai-connector.md): use the panel from Claude, ChatGPT or another MCP app.
 - [Backup and restore](docs/backup-and-restore.md)
 - [Updating](docs/updating.md)
 - [Railway template](docs/railway-template.md): how the Railway template is built.

@@ -96,7 +96,7 @@ Uploads are limited to 25 MB per file. Each person can also have at most 40 uncl
 
 The owner sees this read-only summary in **Settings → Installation**:
 
-- **Public address**: `APP_URL`, or the address saved at install. When `APP_URL` is not set, the owner can change it here.
+- **Public address**: `APP_URL`, or the address saved at install. When `APP_URL` is not set, the owner can change it here. The [AI connector](ai-connector.md) is tied to this address: changing it disconnects every AI app, and each person has to connect again.
 - **E-mail**: whether e-mail goes out through SMTP, through the Resend API, or is off.
 - **File storage**: local disk or S3 bucket, and whether it is writable.
 - **Payments**: which providers are on, or "manual records only".
