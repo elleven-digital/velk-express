@@ -14,7 +14,7 @@ Railway's interface changes over time; the steps describe what to configure rath
 ### Velk Express
 
 - **Source:** Docker image `ghcr.io/elleven-digital/velk-express:0`.
-- **Volume:** mounted at `/data`.
+- **Volume:** mounted at `/data` (uploaded files). To keep files in object storage instead, add a Railway Bucket and set the five `S3_*` variables as references to it (see [configuration](configuration.md#file-storage-disk-or-s3)); the volume is then unused.
 - **Variables:**
 
   | Variable | Value |
@@ -27,19 +27,19 @@ Railway's interface changes over time; the steps describe what to configure rath
 
 - **Networking:** a generated public domain on port `3000`.
 - **Deploy settings:**
-  - healthcheck path: `/api/health`;
-  - restart policy: on failure.
+  - healthcheck path: `/api/health`, with a timeout of 300 seconds (the first boot applies every migration before the app answers);
+  - restart policy: on failure, up to 10 retries.
 
-Do not set a start command: the image's entrypoint waits for the database, backs it up when needed, applies migrations and starts the app.
+Do not set a start command: the image's entrypoint waits for the database, applies pending migrations and starts the app. It does not back the database up: tell people to turn on the Postgres service's backups (see [backup and restore](backup-and-restore.md)).
 
 ## Recreating it
 
-1. Create a new project and add the two services above with the settings listed.
+1. Create a new project and add the two services above with the settings listed. Generate the public domain and set the variables before attaching the image, so the first deploy already has `APP_URL`.
 2. Deploy it once and check that:
    - the service logs end with `[boot] ready`;
    - `https://<generated domain>/api/health` answers `{"ok":true}`;
    - the public address opens the install screen.
-3. From the project's settings, create a template from the project. Give it a name and a short description, and in the description tell people to finish the install screen right after the deploy.
+3. From the project's settings, create a template from the project. Give it a name, an icon and a short description, and in the description tell people to finish the install screen right after the deploy and to turn on database backups.
 4. Publish the template and copy its link.
 5. In the README, replace `RAILWAY_TEMPLATE_URL` with that link and uncomment the button.
 
