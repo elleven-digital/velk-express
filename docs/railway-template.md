@@ -14,7 +14,7 @@ Railway's interface changes over time; the steps describe what to configure rath
 ### Velk Express
 
 - **Source:** Docker image `ghcr.io/elleven-digital/velk-express:0`.
-- **Volume:** mounted at `/data` (uploaded files). To keep files in object storage instead, add a Railway Bucket and set the five `S3_*` variables as references to it (see [configuration](configuration.md#file-storage-disk-or-s3)); the volume is then unused.
+- **Files:** a Railway Bucket named `velk-files`, in the same region as the service. The service has no volume: with the `S3_*` variables set, nothing is written to `/data`. (A volume at `/data` also works, without the five `S3_*` variables; buckets cost less per GB and let the service redeploy without the brief stop a volume needs.)
 - **Variables:**
 
   | Variable | Value |
@@ -22,8 +22,13 @@ Railway's interface changes over time; the steps describe what to configure rath
   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
   | `APP_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
   | `PORT` | `3000` |
+  | `S3_ENDPOINT` | `${{velk-files.ENDPOINT}}` |
+  | `S3_REGION` | `${{velk-files.REGION}}` |
+  | `S3_BUCKET` | `${{velk-files.BUCKET}}` |
+  | `S3_ACCESS_KEY_ID` | `${{velk-files.ACCESS_KEY_ID}}` |
+  | `S3_SECRET_ACCESS_KEY` | `${{velk-files.SECRET_ACCESS_KEY}}` |
 
-  `RAILWAY_PUBLIC_DOMAIN` is the domain Railway generates for the service; generate the domain before the first deploy, or `APP_URL` starts empty and the log warns that it was ignored. Without `PORT`, Railway's own value (usually `8080`) wins and the domain on port `3000` gets no answer. Leave the optional variables (SMTP, Resend, S3, Stripe, Mercado Pago) out of the template, or add them as optional with an empty default and a description from [configuration](configuration.md).
+  `RAILWAY_PUBLIC_DOMAIN` is the domain Railway generates for the service; generate the domain before the first deploy, or `APP_URL` starts empty and the log warns that it was ignored. Without `PORT`, Railway's own value (usually `8080`) wins and the domain on port `3000` gets no answer. Leave the other optional variables (SMTP, Resend, Stripe, Mercado Pago) out of the template, or add them as optional with an empty default and a description from [configuration](configuration.md).
 
 - **Networking:** a generated public domain on port `3000`.
 - **Deploy settings:**
@@ -34,7 +39,7 @@ Do not set a start command: the image's entrypoint waits for the database, appli
 
 ## Recreating it
 
-1. Create a new project and add the two services above with the settings listed. Generate the public domain and set the variables before attaching the image, so the first deploy already has `APP_URL`.
+1. Create a new project and add the database, the bucket and the service above with the settings listed. Generate the public domain and set the variables before attaching the image, so the first deploy already has `APP_URL`.
 2. Deploy it once and check that:
    - the service logs end with `[boot] ready`;
    - `https://<generated domain>/api/health` answers `{"ok":true}`;
