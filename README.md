@@ -13,12 +13,12 @@ It runs as a single Docker image, `ghcr.io/elleven-digital/velk-express`, next t
 
 ## Install
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/velk-express)
+
 <!--
-  Install buttons. Replace the placeholders when the links exist:
-  RAILWAY_TEMPLATE_URL   -> the Railway template link (see docs/railway-template.md)
+  Replace the placeholder when the link exists:
   HOSTINGER_REFERRAL_URL -> the Hostinger VPS referral link
 
-  [![Deploy on Railway](https://railway.com/button.svg)](RAILWAY_TEMPLATE_URL)
   [Get a Hostinger VPS](HOSTINGER_REFERRAL_URL)
 -->
 

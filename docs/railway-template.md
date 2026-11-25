@@ -46,6 +46,6 @@ Do not set a start command: the image's entrypoint waits for the database, appli
    - the public address opens the install screen.
 3. From the project's settings, create a template from the project. Give it a name, an icon and a short description, and in the description tell people to finish the install screen right after the deploy and to turn on database backups.
 4. Publish the template and copy its link.
-5. In the README, replace `RAILWAY_TEMPLATE_URL` with that link and uncomment the button.
+5. In the README, point the "Deploy on Railway" button at that link. The published template lives at https://railway.com/deploy/velk-express.
 
 Delete the test project afterwards, or keep it as your own install after finishing the install screen.

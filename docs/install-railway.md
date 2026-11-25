@@ -13,7 +13,7 @@ Railway's interface changes over time. Where this guide describes a step by what
 
 ## With the template
 
-If the README has a "Deploy on Railway" button, click it. The template creates everything above with the right settings. Then go to [finish the install](#finish-the-install).
+Open the [Velk Express template](https://railway.com/deploy/velk-express) (or click "Deploy on Railway" in the README) and deploy it. The template creates the Postgres service, the Velk Express service and its public domain with the right settings. Uploaded files go to a Railway Bucket named `velk-files` instead of a volume. Then go to [finish the install](#finish-the-install).
 
 ## By hand
 
