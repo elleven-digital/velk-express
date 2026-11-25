@@ -44,8 +44,8 @@ beforeEach(async () => {
   await db.insert(agency).values({ id: 1, name: "Studio Acme", currency: "BRL", locale: "en", timeZone: "America/Sao_Paulo" });
   owner = asTeam(await makeUser("Ana", "owner"));
   collab = asTeam(await makeUser("Cy", "collaborator"));
-  [acme] = await db.insert(clients).values({ name: "Acme Corp", supportActive: true, hoursMode: "package", includedMinutes: 60 }).returning();
-  [beta] = await db.insert(clients).values({ name: "Beta Ltd", supportActive: true, hoursMode: "internal" }).returning();
+  [acme] = await db.insert(clients).values({ name: "Acme Corp", supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 60 }).returning();
+  [beta] = await db.insert(clients).values({ name: "Beta Ltd", supportActive: true, hoursTracked: true }).returning();
   await db.insert(clientAssignments).values({ clientId: acme.id, userId: collab.user.id });
   ticketNumber = 0;
   clock = Date.parse("2026-11-01T12:00:00Z");

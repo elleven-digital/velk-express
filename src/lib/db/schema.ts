@@ -116,11 +116,18 @@ export const clients = pgTable(
     notes: text("notes"),
     supportActive: boolean("support_active").notNull().default(false),
     supportMonthlyCents: integer("support_monthly_cents"),
-    // Never "internal" or "package" without support (normalised in updateSupport).
+    // Deprecated: written from the four hours flags (see legacyHoursMode) so the previous release
+    // still reads a matching plan after a rollback, and never read. Drop it in the next release.
     hoursMode: hoursMode("hours_mode").notNull().default("off"),
-    // Monthly package minutes; 0 outside the package mode.
+    // The hours plan (see src/lib/hours-plan.ts): time is kept, the client sees it in the portal,
+    // there are included hours per month, and the client can buy extra hours in the portal.
+    hoursTracked: boolean("hours_tracked").notNull().default(false),
+    hoursVisible: boolean("hours_visible").notNull().default(false),
+    hoursLimited: boolean("hours_limited").notNull().default(false),
+    hoursPurchasable: boolean("hours_purchasable").notNull().default(false),
+    // Included minutes per month; 0 without included hours.
     includedMinutes: integer("included_minutes").notNull().default(0),
-    // Price of one extra hour, in the agency currency; only kept in the package mode.
+    // Price of one extra hour, in the agency currency; only kept with included hours.
     extraHourCents: integer("extra_hour_cents"),
     generalTicketsEnabled: boolean("general_tickets_enabled").notNull().default(false),
     autoAssign: boolean("auto_assign").notNull().default(false),
@@ -134,10 +141,8 @@ export const clients = pgTable(
     check("clients_included_minutes_nonnegative", sql`${t.includedMinutes} >= 0`),
     check("clients_extra_hour_nonnegative", sql`${t.extraHourCents} >= 0`),
     check("clients_hours_need_support", sql`${t.supportActive} or ${t.hoursMode} = 'off'`),
-    check(
-      "clients_package_fields",
-      sql`${t.hoursMode} = 'package' or (${t.includedMinutes} = 0 and ${t.extraHourCents} is null)`,
-    ),
+    // The hours flags get their checks in the next release, with hours_mode gone: the previous
+    // release still writes hours_mode alone, and those writes must keep passing after a rollback.
   ],
 );
 
@@ -452,6 +457,16 @@ export type QuoteItemConfig = {
   newSite?: { name: string; url?: string };
   siteIds?: string[];
   newSites?: { name: string; url?: string }[];
+  /** A support item's hours plan (see src/lib/hours-plan.ts). Items saved before it only have the legacy keys. */
+  hours?: {
+    tracked: boolean;
+    visible: boolean;
+    limited: boolean;
+    includedMinutes: number;
+    extraHourCents: number | null;
+    purchasable: boolean;
+  };
+  /** Legacy keys, still written alongside `hours` so the previous release reads the same plan. */
   hoursMode?: HoursMode;
   includedMinutes?: number;
   extraHourCents?: number | null;

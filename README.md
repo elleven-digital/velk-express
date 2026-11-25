@@ -4,7 +4,7 @@ Velk Express is a self-hosted, open-source support panel for web agencies. One i
 
 - a **client portal** where your clients open tickets, follow replies, approve quotes and pay;
 - **tickets** with rich-text messages, attachments, assignees, labels and unread tracking;
-- **hours**: a monthly allowance per client, extra hours the client can buy, or internal-only tracking;
+- **hours**: track the time spent per client, show it in the portal or keep it for the team, set included hours per month, and let clients buy extra hours;
 - **quotes** with a public approval page, and a "Close & execute" step that creates the client, sites, support plan and tickets for you;
 - **charges**, one-time or monthly, paid through Stripe and/or Mercado Pago with your own keys, or kept as manual records;
 - an **AI connector**, so your team can use the panel from Claude, ChatGPT or any MCP app.

@@ -123,7 +123,7 @@ export async function getPortalPaymentsHome(session: PortalSession, deps: Deps =
   ]);
   const currency = brand?.currency ?? "BRL";
   const online = availableProviders({ currency, kind: "one_time", clientEmail: null }, deps).some((p) => p !== null);
-  const canBuy = Boolean(client?.supportActive && client.hoursMode === "package" && (client.extraHourCents ?? 0) > 0 && online);
+  const canBuy = Boolean(client?.supportActive && client.hoursPurchasable && (client.extraHourCents ?? 0) > 0 && online);
   return {
     tasks: pending.map(toRow),
     setupPayPath:
@@ -139,7 +139,7 @@ const MAX_CENTS = 2_147_483_647;
 /**
  * The company's admin buys extra hours: a pending purchase (left out of the balance until paid) and
  * its charge are created together, and the caller sends the browser to the returned pay link.
- * Needs the package mode with a price per extra hour, 1 to 100 whole hours, and a provider that
+ * Needs the client to be allowed to buy hours in the portal, with a price per extra hour, 1 to 100 whole hours, and a provider that
  * can take the agency's currency (the manual record cannot be paid by the client). The charge goes
  * to the agency's default provider when it can take it, else the first that can.
  */
@@ -167,7 +167,7 @@ export async function buyHours(
     const [client] = await tx.select().from(clients).where(eq(clients.id, session.client.id)).for("update");
     if (!client) throw new Abort("notFound");
     const unit = client.extraHourCents ?? 0;
-    if (!client.supportActive || client.hoursMode !== "package" || unit <= 0) throw new Abort("nothingToCharge");
+    if (!client.supportActive || !client.hoursPurchasable || unit <= 0) throw new Abort("nothingToCharge");
     const priceCents = hours * unit;
     if (priceCents > MAX_CENTS) throw new Abort("invalidHours");
 

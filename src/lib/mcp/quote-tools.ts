@@ -46,14 +46,21 @@ const ITEM = z.object({
   site_id: z.string().optional().describe("maintenance on an existing site of the client (ids from get_client)."),
   site_ids: z.array(z.string()).max(50).optional().describe("support: the client's existing sites covered by the plan."),
   new_sites: z.array(NEW_SITE).max(20).optional().describe("support: sites to create and cover."),
-  hours_mode: z
-    .enum(["off", "internal", "package"])
+  track_hours: z.boolean().optional().describe("support: keep the time spent (default false). The options below need it."),
+  show_hours_to_client: z.boolean().optional().describe("support: the client sees the hours in the portal."),
+  included_minutes_per_month: z
+    .number()
+    .int()
+    .min(0)
+    .max(100000)
+    .nullable()
     .optional()
-    .describe(
-      "support: off (default); internal = time logged for the team only; package = included minutes per month and an extra hour price, with a balance the client sees.",
-    ),
-  included_minutes_per_month: z.number().int().min(0).max(100000).optional().describe("support, package only."),
-  extra_hour_cents: z.number().int().min(0).nullable().optional().describe("support, package only: the price of one extra hour, in cents."),
+    .describe("support: included minutes per month, with a balance; null or left out for none. Informative: nothing is blocked."),
+  extra_hour_cents: z.number().int().min(0).nullable().optional().describe("support, with included minutes: the price of one extra hour, in cents."),
+  client_can_buy_hours: z
+    .boolean()
+    .optional()
+    .describe("support: the client buys extra hours in the portal (needs show_hours_to_client, included minutes and an extra hour price)."),
 });
 
 type ItemArg = z.infer<typeof ITEM>;
@@ -73,14 +80,18 @@ export function itemConfig(item: ItemArg): QuoteItemConfig {
     if (item.site_id) return { siteId: item.site_id };
     return item.new_site ? { newSite: site(item.new_site) } : {};
   }
-  const mode = item.hours_mode ?? "off";
   const newSites = (item.new_sites ?? []).filter((s) => s.name.trim()).map(site);
   return {
     ...(item.site_ids?.length ? { siteIds: item.site_ids } : {}),
     ...(newSites.length ? { newSites } : {}),
-    hoursMode: mode,
-    includedMinutes: mode === "package" ? (item.included_minutes_per_month ?? 0) : 0,
-    extraHourCents: mode === "package" ? (item.extra_hour_cents ?? null) : null,
+    hours: {
+      tracked: item.track_hours ?? false,
+      visible: item.show_hours_to_client ?? false,
+      limited: item.included_minutes_per_month != null,
+      includedMinutes: item.included_minutes_per_month ?? 0,
+      extraHourCents: item.extra_hour_cents ?? null,
+      purchasable: item.client_can_buy_hours ?? false,
+    },
   };
 }
 

@@ -184,7 +184,7 @@ describe("quotes", () => {
         items: [
           siteItem,
           { kind: "maintenance", title: "Fix shop", amount_cents: 20000, site_id: shop.id },
-          { kind: "support", title: "Plan", amount_cents: 90000, site_ids: [shop.id], hours_mode: "package", included_minutes_per_month: 300, extra_hour_cents: 12000 },
+          { kind: "support", title: "Plan", amount_cents: 90000, site_ids: [shop.id], track_hours: true, show_hours_to_client: true, included_minutes_per_month: 300, extra_hour_cents: 12000, client_can_buy_hours: true },
         ],
       }),
     );
@@ -199,7 +199,11 @@ describe("quotes", () => {
       kind: "support",
       billing: "monthly",
       site_ids: [shop.id],
-      hours: { mode: "package", included_minutes_per_month: 300, extra_hour_cents: 12000 },
+      track_hours: true,
+      show_hours_to_client: true,
+      included_minutes_per_month: 300,
+      extra_hour_cents: 12000,
+      client_can_buy_hours: true,
     });
 
     const edited = data(await call(owner, "update_quote", { quote_id: id, title: "Website v2", client_id: acme.id, items: [siteItem] }));

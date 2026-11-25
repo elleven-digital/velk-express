@@ -58,7 +58,7 @@ async function makeQuote(
     .insert(quoteItems)
     .values([
       { quoteId: quote.id, kind: "site_creation", title: "Website", amountCents: 1000_00, monthly: false, position: 0, config: { newSite: { name: "Hidden" } } },
-      { quoteId: quote.id, kind: "support", title: "Support", amountCents: 200_00, monthly: true, position: 1, config: { hoursMode: "off" } },
+      { quoteId: quote.id, kind: "support", title: "Support", amountCents: 200_00, monthly: true, position: 1, config: { hours: { tracked: false, visible: false, limited: false, includedMinutes: 0, extraHourCents: null, purchasable: false } } },
       { quoteId: quote.id, kind: "maintenance", title: "Setup", amountCents: 300_00, monthly: false, position: 2, config: {} },
     ])
     .returning({ id: quoteItems.id, position: quoteItems.position });

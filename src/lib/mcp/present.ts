@@ -156,15 +156,15 @@ export function presentTicketDetail(
     // The latest day log_time accepts, and its default.
     today: view.today,
     client_hours: view.hours
-      ? view.hours.mode === "package"
-        ? {
-            mode: "package" as const,
-            cycle: view.hours.cycle,
-            used_minutes: view.hours.usedMinutes,
-            total_minutes: view.hours.totalMinutes,
-            balance_minutes: view.hours.balanceMinutes,
-          }
-        : { mode: "internal" as const, cycle: view.hours.cycle, used_minutes: view.hours.usedMinutes }
+      ? {
+          cycle: view.hours.cycle,
+          show_hours_to_client: view.hours.visible,
+          has_included_hours: view.hours.limited,
+          used_minutes: view.hours.usedMinutes,
+          ...(view.hours.limited
+            ? { total_minutes: view.hours.totalMinutes, balance_minutes: view.hours.balanceMinutes }
+            : {}),
+        }
       : null,
     // Money is staff business.
     ...(money

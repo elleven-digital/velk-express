@@ -64,7 +64,7 @@ The connector has 59 tools. The **Who** column is the role that can call the too
 - **Owner and manager**: not available to collaborators.
 - **Owner**: only the owner.
 
-Money: amounts in answers are in cents, with their currency. Amounts sent as `*_cents` fields (for example `value_cents`) are in cents too. The plan amounts and the hour package price are typed as text, the way you type them in the panel, for example `1.200,50`.
+Money: amounts in answers are in cents, with their currency. Amounts sent as `*_cents` fields (for example `value_cents`) are in cents too. The plan amounts and the extra hour price are typed as text, the way you type them in the panel, for example `1.200,50`.
 
 ### General
 
@@ -108,7 +108,7 @@ Money: amounts in answers are in cents, with their currency. Amounts sent as `*_
 | Tool | Who | What it does |
 |---|---|---|
 | `list_clients` | Everyone | Lists the clients the person can see. |
-| `get_client` | Everyone | One client with sites, support plan, hours mode and open tickets. Collaborators do not see amounts or team. |
+| `get_client` | Everyone | One client with sites, support plan, hours options and open tickets. Collaborators do not see amounts or team. |
 | `create_client` | Owner and manager | Registers a client. |
 | `update_client` | Owner and manager | Changes a client's data and support plan (only the fields given). |
 | `set_client_team` | Owner and manager | Sets which team members take part in a client. |

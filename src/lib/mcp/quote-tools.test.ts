@@ -23,7 +23,7 @@ describe("itemConfig", () => {
     });
   });
 
-  it("support carries its sites and the hours mode; minutes and extra hour only in the package", () => {
+  it("support carries its sites and the hours plan; included minutes mean a limit", () => {
     expect(
       itemConfig({
         kind: "support",
@@ -31,24 +31,22 @@ describe("itemConfig", () => {
         amount_cents: 1,
         site_ids: [SITE, OTHER_SITE],
         new_sites: [{ name: "Blog", url: "blog.com" }, { name: "  " }],
-        hours_mode: "package",
+        track_hours: true,
+        show_hours_to_client: true,
         included_minutes_per_month: 600,
         extra_hour_cents: 15000,
+        client_can_buy_hours: true,
       }),
     ).toEqual({
       siteIds: [SITE, OTHER_SITE],
       newSites: [{ name: "Blog", url: "blog.com" }],
-      hoursMode: "package",
-      includedMinutes: 600,
-      extraHourCents: 15000,
+      hours: { tracked: true, visible: true, limited: true, includedMinutes: 600, extraHourCents: 15000, purchasable: true },
     });
-    expect(
-      itemConfig({ kind: "support", title: "Plan", amount_cents: 1, hours_mode: "internal", included_minutes_per_month: 600, extra_hour_cents: 9 }),
-    ).toEqual({ hoursMode: "internal", includedMinutes: 0, extraHourCents: null });
+    expect(itemConfig({ kind: "support", title: "Plan", amount_cents: 1, track_hours: true })).toEqual({
+      hours: { tracked: true, visible: false, limited: false, includedMinutes: 0, extraHourCents: null, purchasable: false },
+    });
     expect(itemConfig({ kind: "support", title: "Plan", amount_cents: 1 })).toEqual({
-      hoursMode: "off",
-      includedMinutes: 0,
-      extraHourCents: null,
+      hours: { tracked: false, visible: false, limited: false, includedMinutes: 0, extraHourCents: null, purchasable: false },
     });
   });
 

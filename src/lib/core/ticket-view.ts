@@ -35,7 +35,7 @@ export type TeamTicketView = {
   /** `valueCents` is cleared for people who may not see it. */
   ticket: Ticket;
   site: Pick<Site, "id" | "name"> | null;
-  client: Pick<Client, "id" | "name" | "supportActive" | "hoursMode" | "includedMinutes">;
+  client: Pick<Client, "id" | "name" | "supportActive" | "hoursTracked" | "hoursLimited" | "includedMinutes">;
   openerName: string;
   turn: Turn;
   /** Messages of other people this member has not read, as of this read. */
@@ -54,8 +54,8 @@ export type TeamTicketView = {
   time: { entries: TicketTimeEntry[]; totalMinutes: number };
   /** The same entries by when they were logged, for the conversation's quiet lines. */
   timeEvents: { id: string; at: number; iso: string; name: string; mine: boolean; minutes: number }[];
-  /** The client's hours for the CURRENT cycle: only for the team-only and package modes, else null. */
-  hours: { mode: "internal" | "package"; cycle: string; usedMinutes: number; balanceMinutes: number; totalMinutes: number } | null;
+  /** The client's hours for the CURRENT cycle while hours are tracked, else null. */
+  hours: { limited: boolean; visible: boolean; cycle: string; usedMinutes: number; balanceMinutes: number; totalMinutes: number } | null;
   /** Today in the agency's time zone: the default and the latest day a time entry can have. */
   today: string;
   /** ISO instant taken from the database clock before anything was read; what `MarkRead` sends back. */
@@ -96,7 +96,8 @@ export async function getTeamTicketView(
           id: clients.id,
           name: clients.name,
           supportActive: clients.supportActive,
-          hoursMode: clients.hoursMode,
+          hoursTracked: clients.hoursTracked,
+          hoursLimited: clients.hoursLimited,
           includedMinutes: clients.includedMinutes,
         },
         site: { id: sites.id, name: sites.name } })
@@ -134,11 +135,12 @@ export async function getTeamTicketView(
   const now = deps.now?.() ?? new Date();
   const timeZone = await agencyTimeZone(db);
   const summary =
-    row.client.hoursMode === "off" ? null : await getHoursSummary(ticket.clientId, cycleKey(now, timeZone), { db });
+    !row.client.hoursTracked ? null : await getHoursSummary(ticket.clientId, cycleKey(now, timeZone), { db });
   const hours =
-    summary && (summary.mode === "internal" || summary.mode === "package")
+    summary && summary.tracked
       ? {
-          mode: summary.mode,
+          limited: summary.limited,
+          visible: summary.visible,
           cycle: summary.cycle,
           usedMinutes: summary.usedMinutes,
           balanceMinutes: summary.balanceMinutes,

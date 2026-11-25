@@ -156,7 +156,10 @@ beforeEach(async () => {
       supportActive: true,
       supportMonthlyCents: 100000,
       generalTicketsEnabled: true,
-      hoursMode: "package",
+      hoursTracked: true,
+      hoursVisible: true,
+      hoursLimited: true,
+      hoursPurchasable: true,
       includedMinutes: 600,
       extraHourCents: 15000,
     })
@@ -184,13 +187,13 @@ async function reload(): Promise<{ client: Client; sites: Site[] }> {
 }
 
 describe("update_client", () => {
-  it("with only monthly_amount keeps the hours mode, the sites in the plan and the included minutes", async () => {
+  it("with only monthly_amount keeps the hours options, the sites in the plan and the included minutes", async () => {
     const res = data(await call(manager, "update_client", { client_id: acme.id, monthly_amount: "1.500,00" }));
     expect(res.ok).toBe(true);
     const { client, sites: after } = await reload();
     expect(client.supportMonthlyCents).toBe(150000);
     expect(client.supportActive).toBe(true);
-    expect(client.hoursMode).toBe("package");
+    expect(client).toMatchObject({ hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: true });
     expect(client.includedMinutes).toBe(600);
     expect(client.extraHourCents).toBe(15000);
     expect(client.generalTicketsEnabled).toBe(true);
@@ -215,15 +218,29 @@ describe("update_client", () => {
     expect(client.supportMonthlyCents).toBe(100000);
   });
 
-  it("switches the hours mode and the sites in the plan when asked", async () => {
-    data(await call(owner, "update_client", { client_id: acme.id, hours_mode: "internal", sites_in_plan: [outOfPlan.id] }));
+  it("switches the hours options and the sites in the plan when asked", async () => {
+    data(await call(owner, "update_client", { client_id: acme.id, show_hours_to_client: false, sites_in_plan: [outOfPlan.id] }));
     const { client, sites: after } = await reload();
-    expect(client.hoursMode).toBe("internal");
-    expect(client.includedMinutes).toBe(0);
-    expect(client.extraHourCents).toBeNull();
+    // Hours stay tracked with included hours; buying needs the client to see the hours, so it goes off.
+    expect(client).toMatchObject({ hoursTracked: true, hoursVisible: false, hoursLimited: true, hoursPurchasable: false, includedMinutes: 600 });
     expect(client.supportMonthlyCents).toBe(100000);
     expect(after.find((s) => s.id === inPlan.id)?.includedInSupport).toBe(false);
     expect(after.find((s) => s.id === outOfPlan.id)?.includedInSupport).toBe(true);
+  });
+
+  it("included_minutes_per_month null removes the included hours and the extra hour price", async () => {
+    const res = data(await call(owner, "update_client", { client_id: acme.id, included_minutes_per_month: null }));
+    expect(res.ok).toBe(true);
+    const { client } = await reload();
+    expect(client).toMatchObject({
+      hoursTracked: true,
+      hoursVisible: true,
+      hoursLimited: false,
+      hoursPurchasable: false,
+      includedMinutes: 0,
+      extraHourCents: null,
+    });
+    expect(res.client.support).toMatchObject({ track_hours: true, show_hours_to_client: true, included_minutes_per_month: null, client_can_buy_hours: false });
   });
 
   it("says the client's data was saved when the plan is refused after it", async () => {
@@ -283,9 +300,9 @@ describe("list_clients and get_client", () => {
   it("gives a collaborator no money, team or rotation", async () => {
     const { client } = data(await call(collab, "get_client", { client_id: acme.id }));
     expect(client).toMatchObject({ id: acme.id, name: "Acme", email: "hi@acme.com" });
-    expect(client.support).toMatchObject({ active: true, hours_mode: "package", included_minutes_per_month: 600 });
+    expect(client.support).toMatchObject({ active: true, track_hours: true, show_hours_to_client: true, included_minutes_per_month: 600, client_can_buy_hours: true });
     expect(client.sites.map((s: { name: string }) => s.name).sort()).toEqual(["Blog", "Shop"]);
-    expect(client.hours).toMatchObject({ mode: "package", balance_minutes: 600 });
+    expect(client.hours).toMatchObject({ track_hours: true, show_hours_to_client: true, has_included_hours: true, balance_minutes: 600 });
     const text = JSON.stringify(client);
     for (const key of ["monthly_cents", "extra_hour_cents", "team", "rotation", "support_charge", "auto_assign"]) {
       expect(text).not.toContain(`"${key}"`);
@@ -322,9 +339,9 @@ describe("list_clients and get_client", () => {
 
 describe("hours", () => {
   it("get_hours of a client with hours off says so", async () => {
-    const [off] = await db.insert(clients).values({ name: "Off Co", supportActive: true, hoursMode: "off" }).returning();
+    const [off] = await db.insert(clients).values({ name: "Off Co", supportActive: true }).returning();
     const { hours } = data(await call(owner, "get_hours", { client_id: off.id, cycle: "2026-11" }));
-    expect(hours.hours_mode).toBe("off");
+    expect(hours).toMatchObject({ track_hours: false, show_hours_to_client: false, has_included_hours: false });
     expect(hours.notice).toBe(en.hours.notTracked);
     expect(hours).not.toHaveProperty("balance_minutes");
   });
@@ -337,7 +354,7 @@ describe("hours", () => {
     expect(row).toMatchObject({ minutes: 90, cycle: "2026-11", priceCents: 15000, note: "Extra", pending: false });
 
     const { hours } = data(await call(manager, "get_hours", { client_id: acme.id, cycle: "2026-11" }));
-    expect(hours).toMatchObject({ hours_mode: "package", included_minutes: 600, purchased_minutes: 90, balance_minutes: 690 });
+    expect(hours).toMatchObject({ track_hours: true, show_hours_to_client: true, has_included_hours: true, included_minutes: 600, purchased_minutes: 90, balance_minutes: 690 });
     expect(hours.hour_packages).toEqual([
       expect.objectContaining({ id: row.id, minutes: 90, price_cents: 15000, pending_payment: false, charge: null }),
     ]);

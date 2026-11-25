@@ -61,7 +61,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
   const { hours, time } = view;
   const month = hours ? formatCycle(hours.cycle, locale) : "";
   const supportLine = client.supportActive
-    ? client.hoursMode === "package"
+    ? client.hoursLimited
       ? fmt(t.ui.supportLine, { hours: formatMinutes(client.includedMinutes) })
       : t.ui.supportLineNoHours
     : t.ui.noSupport;
@@ -230,7 +230,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
             {hours ? (
               <section className="p-4" aria-labelledby="d-hours">
-                {hours.mode === "internal" ? (
+                {!hours.limited ? (
                   <>
                     <h3 id="d-hours" className={detailHead}>
                       {fmt(t.ui.figHours, { month })}
@@ -238,7 +238,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
                     <b className="block text-[1.5rem] leading-tight font-semibold tracking-[-0.02em] text-ink tabular">
                       {formatMinutes(hours.usedMinutes)}
                     </b>
-                    <p className="mt-0.5 text-[0.8125rem] text-muted">{t.ui.hoursTeamOnly}</p>
+                    <p className="mt-0.5 text-[0.8125rem] text-muted">{hours.visible ? t.ui.hoursClientSees : t.ui.hoursTeamOnly}</p>
                   </>
                 ) : (
                   <>

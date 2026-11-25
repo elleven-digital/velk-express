@@ -104,17 +104,18 @@ export default async function ClientHoursPage({
   const providerLabel = providerLabels(t);
 
   const base = `/admin/clients/${client.id}/hours`;
-  const internal = summary.mode === "internal";
+  // Hours kept without included hours: no balance, so no purchases column either.
+  const internal = summary.tracked && !summary.limited;
   const month = formatCycle(cycle, locale);
   const title = month.charAt(0).toUpperCase() + month.slice(1);
 
-  const off = summary.mode === "off";
+  const off = !summary.tracked;
   // With hours off, a cycle that still holds time or purchases keeps showing them; only an empty one gets the empty state.
   const offEmpty = off && entries.length === 0 && purchases.length === 0;
 
   return (
     <div>
-      {internal ? (
+      {summary.tracked && !summary.visible ? (
         <Callout tone="info" className="mb-6">
           {t.hours.internalOnly}
         </Callout>
@@ -200,7 +201,7 @@ export default async function ClientHoursPage({
             </StatGrid>
           )}
 
-          {summary.mode === "package" && summary.balanceMinutes < 0 ? (
+          {summary.limited && summary.balanceMinutes < 0 ? (
             <Callout tone="danger" className="mb-6">
               {t.hours.negativeWarning}
             </Callout>

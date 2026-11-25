@@ -235,7 +235,7 @@ describe("getPortalTicketView time", () => {
     db.insert(timeEntries).values({ ticketId, clientId: client.id, minutes, workedOn: "2026-11-10", note, createdById: teamUser.id });
 
   it("portal ticket view exposes only the total, never entries", async () => {
-    await db.update(clients).set({ hoursMode: "package", includedMinutes: 600 }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 }).where(eq(clients.id, A.id));
     const id = await open(A, "Timed", siteA.id);
     expect((await getPortalTicketView(asPortal(A), id, "en", db))!.timeLoggedMinutes).toBeNull();
     await logTime(id, A, 45, "private note");
@@ -248,11 +248,11 @@ describe("getPortalTicketView time", () => {
     expect(Object.keys(view).sort()).toEqual(["charge", "files", "messages", "siteName", "ticket", "timeLoggedMinutes", "turn"]);
   });
 
-  it("has no time total outside the package", async () => {
+  it("has no time total while the client does not see hours", async () => {
     const id = await open(A, "Timed");
     await logTime(id, A, 45, "n");
     expect((await getPortalTicketView(asPortal(A), id, "en", db))!.timeLoggedMinutes).toBeNull();
-    await db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ hoursTracked: true, hoursVisible: false, hoursLimited: false, includedMinutes: 0 }).where(eq(clients.id, A.id));
     expect((await getPortalTicketView(asPortal(A), id, "en", db))!.timeLoggedMinutes).toBeNull();
   });
 });

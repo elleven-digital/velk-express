@@ -57,6 +57,13 @@
       "when": 1795282160799,
       "tag": "0007_free_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795626924061,
+      "tag": "0008_hours_options",
+      "breakpoints": true
     }
   ]
 }

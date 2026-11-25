@@ -65,7 +65,7 @@ export default async function PortalHomePage({ searchParams }: { searchParams: P
 
       <Flash error={flash} />
 
-      {home.hours && home.hours.balanceMinutes < 0 ? (
+      {home.hours?.limited && home.hours.balanceMinutes < 0 ? (
         <Callout tone="danger" className="mb-8">
           {fmt(t.hours.negativeWarningPortal, { agency: agencyName })}
         </Callout>
@@ -232,7 +232,7 @@ export default async function PortalHomePage({ searchParams }: { searchParams: P
   );
 }
 
-/** The package balance: the big number, the bar, and when it renews. Numbers and strings only. */
+/** The hours: with included hours the balance, the bar and when it renews; without, the hours used. Numbers and strings only. */
 function HoursBlock({
   hours,
   t,
@@ -247,6 +247,18 @@ function HoursBlock({
   const negative = hours.balanceMinutes < 0;
   const total = hours.includedMinutes + hours.purchasedMinutes;
   const month = formatCycle(hours.cycle, locale);
+  if (!hours.limited) {
+    // No included hours: only what was used this month.
+    return (
+      <div className="!mt-4 border-t border-line pt-4">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-[1.75rem] font-semibold tabular text-ink">{formatMinutes(hours.usedMinutes)}</span>
+          <span className="text-muted">{fmt(t.ui.usedIn, { month })}</span>
+        </div>
+        {children}
+      </div>
+    );
+  }
   return (
     <div className="!mt-4 border-t border-line pt-4">
       <div className="flex flex-wrap items-baseline gap-x-2">

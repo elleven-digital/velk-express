@@ -4,7 +4,7 @@ import { z } from "zod";
 import { isStaff } from "@/lib/access";
 import { agencyTimeZone } from "@/lib/agency";
 import type { TeamSession } from "@/lib/auth/session";
-import { charges, clients, db as appDb, hourPurchases, tickets, timeEntries, type Db, type HoursMode } from "@/lib/db";
+import { charges, clients, db as appDb, hourPurchases, tickets, timeEntries, type Db } from "@/lib/db";
 import { getDict, type Locale } from "@/lib/i18n";
 import { cycleKey, cycleRange, isCycle, parseDuration, parsePurchaseQuantity, todayInCycleZone } from "@/lib/hours";
 import { parseMoney } from "@/lib/format";
@@ -21,14 +21,19 @@ const NOTE_MAX_CHARS = 500;
 
 export type HoursSummary = {
   cycle: string;
-  mode: HoursMode;
-  /** The package's monthly minutes; 0 outside the package mode. */
+  /** Time is kept for this client. */
+  tracked: boolean;
+  /** The client sees the hours in the portal. */
+  visible: boolean;
+  /** There are included hours per month, so the balance means something. */
+  limited: boolean;
+  /** The monthly included minutes; 0 without included hours. */
   includedMinutes: number;
   /** Minutes bought for this cycle and already paid. */
   purchasedMinutes: number;
   /** Minutes logged on support tickets with a work day in this cycle. */
   usedMinutes: number;
-  /** included + purchased - used; negative when over the package. */
+  /** included + purchased - used; negative when over the included hours. */
   balanceMinutes: number;
 };
 
@@ -60,12 +65,14 @@ export async function getHoursSummary(
     .from(hourPurchases)
     .where(and(eq(hourPurchases.clientId, clientId), eq(hourPurchases.cycle, month), eq(hourPurchases.pending, false)));
 
-  const includedMinutes = client.hoursMode === "package" ? client.includedMinutes : 0;
+  const includedMinutes = client.hoursLimited ? client.includedMinutes : 0;
   const usedMinutes = used.total;
   const purchasedMinutes = bought.total;
   return {
     cycle: month,
-    mode: client.hoursMode,
+    tracked: client.hoursTracked,
+    visible: client.hoursVisible,
+    limited: client.hoursLimited,
     includedMinutes,
     purchasedMinutes,
     usedMinutes,

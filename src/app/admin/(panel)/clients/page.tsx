@@ -71,14 +71,14 @@ export default async function ClientsPage() {
                   <div className="truncate font-medium text-ink">{client.name}</div>
                   <div className="truncate text-[0.8125rem] text-muted">
                     {t.clients.colSites}: {client.siteCount}
-                    {client.supportActive && client.hoursMode === "package" ? (
+                    {client.supportActive && client.hoursLimited ? (
                       <>
                         {" · "}
                         {formatMinutes(client.includedMinutes)}
                         {t.clients.perMonth}
                       </>
                     ) : null}
-                    {client.supportActive && client.hoursMode === "internal" ? <> · {t.clients.hoursInternalShort}</> : null}
+                    {client.supportActive && client.hoursTracked && !client.hoursLimited ? <> · {t.clients.hoursTrackedShort}</> : null}
                   </div>
                 </div>
                 <Badge tone={client.supportActive ? "ok" : "muted"}>
@@ -121,14 +121,14 @@ export default async function ClientsPage() {
                       <Badge tone={client.supportActive ? "ok" : "muted"}>
                         {client.supportActive ? t.clients.supportActive : t.clients.supportInactive}
                       </Badge>
-                      {client.supportActive && client.hoursMode === "package" ? (
+                      {client.supportActive && client.hoursLimited ? (
                         <span className="ml-2 text-[0.8125rem] text-muted">
                           {formatMinutes(client.includedMinutes)}
                           {t.clients.perMonth}
                         </span>
                       ) : null}
-                      {client.supportActive && client.hoursMode === "internal" ? (
-                        <span className="ml-2 text-[0.8125rem] text-muted">{t.clients.hoursInternalShort}</span>
+                      {client.supportActive && client.hoursTracked && !client.hoursLimited ? (
+                        <span className="ml-2 text-[0.8125rem] text-muted">{t.clients.hoursTrackedShort}</span>
                       ) : null}
                     </td>
                   </tr>

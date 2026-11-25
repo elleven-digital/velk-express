@@ -492,7 +492,7 @@ describe("charges", () => {
   });
 
   it("paying a portal hour purchase releases it into its cycle", async () => {
-    const client = await makeClient({ supportActive: true, supportMonthlyCents: 500_00, hoursMode: "package", includedMinutes: 600, extraHourCents: 100_00 });
+    const client = await makeClient({ supportActive: true, supportMonthlyCents: 500_00, hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: true, includedMinutes: 600, extraHourCents: 100_00 });
     const purchase = await makePurchase(client.id, { pending: true, minutes: 180, priceCents: 300_00, cycle: "2026-10" });
     const h = expectOk(await createCharge(owner, { source: "hours", sourceId: purchase.id, provider: "stripe" }, deps()));
     expect((await getHoursSummary(client.id, "2026-10", { db }))?.purchasedMinutes).toBe(0);
@@ -668,7 +668,7 @@ describe("charges", () => {
   });
 
   it("a purchase with a live or paid charge cannot be deleted", async () => {
-    const client = await makeClient({ supportActive: true, hoursMode: "package", includedMinutes: 600 });
+    const client = await makeClient({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 });
     const live = await makePurchase(client.id);
     const c = expectOk(await createCharge(owner, { source: "hours", sourceId: live.id, provider: null }, deps()));
     expect(await deleteHourPurchase(owner, client.id, live.id, { db })).toEqual({ ok: false, error: "chargeExists" });

@@ -127,7 +127,7 @@ beforeEach(async () => {
   owner = await makeUser("Ana", "owner");
   manager = await makeUser("Beto", "manager", "pt");
   collab = await makeUser("Cy", "collaborator");
-  [acme] = await db.insert(clients).values({ name: "Acme", supportActive: true, generalTicketsEnabled: true, hoursMode: "package", includedMinutes: 120 }).returning();
+  [acme] = await db.insert(clients).values({ name: "Acme", supportActive: true, generalTicketsEnabled: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 120 }).returning();
   [beta] = await db.insert(clients).values({ name: "Beta", supportActive: true }).returning();
   mailed.mockClear();
 });
@@ -231,7 +231,7 @@ describe("get_ticket", () => {
       url: `https://agency.test/admin/tickets/${ticketId}`,
       value_cents: null,
       currency: "BRL",
-      client_hours: { mode: "package", used_minutes: 0, total_minutes: 120, balance_minutes: 120 },
+      client_hours: { show_hours_to_client: true, has_included_hours: true, used_minutes: 0, total_minutes: 120, balance_minutes: 120 },
     });
     expect(first.messages.map((m: { from: string; text: string }) => [m.from, m.text])).toEqual([
       ["agency", "Start"],

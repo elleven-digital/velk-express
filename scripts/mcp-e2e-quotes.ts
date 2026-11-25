@@ -20,7 +20,7 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
       client_id: client.id,
       items: [
         { kind: "site_creation", title: "Website", amount_cents: 450000, new_site: { name: "Jacarandá", url: "jacaranda.test" } },
-        { kind: "support", title: "Support", amount_cents: 60000, hours_mode: "package", included_minutes_per_month: 120 },
+        { kind: "support", title: "Support", amount_cents: 60000, track_hours: true, show_hours_to_client: true, included_minutes_per_month: 120 },
       ],
     }),
   );
@@ -37,7 +37,7 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
   );
   check(
     "the support item keeps its hour package",
-    items[1]?.config?.hoursMode === "package" && items[1].config.includedMinutes === 120,
+    items[1]?.config?.hours?.tracked === true && items[1].config.hours.limited === true && items[1].config.hours.includedMinutes === 120,
     items[1]?.config,
   );
 

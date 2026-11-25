@@ -100,10 +100,10 @@ export async function getPortalTicketView(
       .from(tickets)
       .leftJoin(sites, eq(sites.id, tickets.siteId))
       .where(eq(tickets.id, ticket.id)),
-    // Only the mode and one sum: entries, notes, dates and authors stay on the team's side.
+    // Only whether the client sees hours, and one sum: entries, notes, dates and authors stay on the team's side.
     db
       .select({
-        mode: clients.hoursMode,
+        visible: clients.hoursVisible,
         total: sql<number>`coalesce((select sum(${timeEntries.minutes}) from ${timeEntries} where ${timeEntries.ticketId} = ${ticket.id}), 0)::int`,
       })
       .from(clients)
@@ -124,7 +124,7 @@ export async function getPortalTicketView(
     },
     siteName: row.siteName,
     turn: whoseTurn(ticket, row.last),
-    timeLoggedMinutes: hoursRow?.mode === "package" && hoursRow.total > 0 ? hoursRow.total : null,
+    timeLoggedMinutes: hoursRow?.visible && hoursRow.total > 0 ? hoursRow.total : null,
     messages,
     files,
     charge,
