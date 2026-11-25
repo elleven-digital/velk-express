@@ -1,6 +1,7 @@
 import type { ChargeView } from "@/lib/core/charges";
 import type { QuoteDetail, QuoteRow } from "@/lib/core/quotes";
 import type { Quote, QuoteItemConfig } from "@/lib/db";
+import { configHoursPlan, type HoursPlan } from "@/lib/hours-plan";
 import { iso, panelBase, presentCharge } from "@/lib/mcp/present";
 
 /**
@@ -19,6 +20,17 @@ export function quotePublicUrl(appUrl: string, quote: Pick<Quote, "status" | "to
   return quote.status === "draft" || quote.status === "archived" ? null : `${panelBase(appUrl)}/q/${quote.token}`;
 }
 
+/** A support item's hours plan, in the tool's argument names. */
+function presentItemHours(plan: HoursPlan) {
+  return {
+    track_hours: plan.tracked,
+    show_hours_to_client: plan.visible,
+    included_minutes_per_month: plan.limited ? plan.includedMinutes : null,
+    extra_hour_cents: plan.extraHourCents,
+    client_can_buy_hours: plan.purchasable,
+  };
+}
+
 /** An item's sites and hours, in the tool's argument names. */
 function presentConfig(config: QuoteItemConfig) {
   return {
@@ -26,16 +38,7 @@ function presentConfig(config: QuoteItemConfig) {
     ...(config.newSite ? { new_site: config.newSite } : {}),
     ...(config.siteIds?.length ? { site_ids: config.siteIds } : {}),
     ...(config.newSites?.length ? { new_sites: config.newSites } : {}),
-    ...(config.hoursMode
-      ? {
-          hours: {
-            mode: config.hoursMode,
-            ...(config.hoursMode === "package"
-              ? { included_minutes_per_month: config.includedMinutes ?? 0, extra_hour_cents: config.extraHourCents ?? null }
-              : {}),
-          },
-        }
-      : {}),
+    ...(config.hours || config.hoursMode ? { ...presentItemHours(configHoursPlan(config)) } : {}),
   };
 }
 

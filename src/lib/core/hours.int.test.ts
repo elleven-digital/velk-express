@@ -33,8 +33,8 @@ beforeEach(async () => {
   [A, B] = await db
     .insert(clients)
     .values([
-      { name: "Alpha", supportActive: true, hoursMode: "package", includedMinutes: 600 },
-      { name: "Beta", supportActive: true, hoursMode: "package", includedMinutes: 300 },
+      { name: "Alpha", supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 },
+      { name: "Beta", supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 300 },
     ])
     .returning();
   [{ id: userId }] = await db
@@ -69,7 +69,9 @@ describe("getHoursSummary", () => {
 
     expect(await getHoursSummary(A.id, "2026-11", { db })).toEqual({
       cycle: "2026-11",
-      mode: "package",
+      tracked: true,
+      visible: true,
+      limited: true,
       includedMinutes: 600,
       purchasedMinutes: 120,
       usedMinutes: 150,
@@ -85,21 +87,21 @@ describe("getHoursSummary", () => {
     expect(summary?.balanceMinutes).toBe(-100);
   });
 
-  it("internal and off clients have zero included minutes", async () => {
+  it("clients without included hours have zero included minutes", async () => {
     const [internal, off] = await db
       .insert(clients)
       .values([
-        { name: "Gamma", supportActive: true, hoursMode: "internal" },
-        { name: "Delta", hoursMode: "off" },
+        { name: "Gamma", supportActive: true, hoursTracked: true },
+        { name: "Delta" },
       ])
       .returning();
     const t = await ticket(internal.id, "support");
     await db.insert(timeEntries).values(entry(t, 30, "2026-11-05"));
 
     const a = await getHoursSummary(internal.id, "2026-11", { db });
-    expect(a).toMatchObject({ mode: "internal", includedMinutes: 0, usedMinutes: 30, balanceMinutes: -30 });
+    expect(a).toMatchObject({ tracked: true, visible: false, limited: false, includedMinutes: 0, usedMinutes: 30, balanceMinutes: -30 });
     const b = await getHoursSummary(off.id, "2026-11", { db });
-    expect(b).toMatchObject({ mode: "off", includedMinutes: 0, usedMinutes: 0, balanceMinutes: 0 });
+    expect(b).toMatchObject({ tracked: false, visible: false, limited: false, includedMinutes: 0, usedMinutes: 0, balanceMinutes: 0 });
   });
 
   it("is null for a client that does not exist", async () => {

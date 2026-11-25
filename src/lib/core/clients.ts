@@ -4,7 +4,8 @@ import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { canAccessClient, isStaff, visibleClientsWhere } from "@/lib/access";
 import type { TeamSession } from "@/lib/auth/session";
-import { db as appDb, clients, sites, type Client, type Db, type HoursMode, type Site } from "@/lib/db";
+import { db as appDb, clients, sites, type Client, type Db, type Site } from "@/lib/db";
+import type { HoursPlan } from "@/lib/hours-plan";
 import { fail, ok, type Result } from "./result";
 import { applySupportPlan } from "./support-plan";
 
@@ -24,9 +25,7 @@ export type SupportInput = {
   monthlyCents: number | null;
   generalTickets: boolean;
   siteIdsInPlan: string[];
-  hoursMode: HoursMode;
-  includedMinutes: number;
-  extraHourCents: number | null;
+  hours: HoursPlan;
 };
 export type SiteInput = { name: string; url?: string | null; notes?: string | null; includedInSupport?: boolean };
 
@@ -61,9 +60,14 @@ const supportSchema = z.object({
   monthlyCents: z.number().int().min(0).max(MAX_CENTS).nullable(),
   generalTickets: z.boolean(),
   siteIdsInPlan: z.array(z.string()),
-  hoursMode: z.enum(["off", "internal", "package"]),
-  includedMinutes: z.number().int().min(0).max(100_000),
-  extraHourCents: z.number().int().min(0).max(MAX_CENTS).nullable(),
+  hours: z.object({
+    tracked: z.boolean(),
+    visible: z.boolean(),
+    limited: z.boolean(),
+    includedMinutes: z.number().int().min(0).max(100_000),
+    extraHourCents: z.number().int().min(0).max(MAX_CENTS).nullable(),
+    purchasable: z.boolean(),
+  }),
 });
 
 const siteSchema = z.object({

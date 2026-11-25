@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { en } from "@/lib/i18n/en";
 import { fmt } from "@/lib/i18n";
+import { NO_HOURS } from "@/lib/hours-plan";
 import { parseQuotePayload, payloadErrorText } from "./quote-payload";
 
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -25,7 +26,10 @@ const support = {
   newSiteUrl: "",
   siteIds: [SITE],
   newSites: [{ name: "shop.example.com", url: "" }, { name: "", url: "" }],
-  hoursMode: "package",
+  hoursTracked: true,
+  hoursVisible: true,
+  hoursLimited: true,
+  hoursPurchasable: true,
   includedHours: "7,5",
   extraHourPrice: "80,00",
 };
@@ -76,6 +80,7 @@ describe("the builder payload parser", () => {
             config: {
               siteIds: [SITE],
               newSites: [{ name: "shop.example.com" }],
+              hours: { tracked: true, visible: true, limited: true, includedMinutes: 450, extraHourCents: 8000, purchasable: true },
               hoursMode: "package",
               includedMinutes: 450,
               extraHourCents: 8000,
@@ -90,7 +95,7 @@ describe("the builder payload parser", () => {
     const site = { ...support, kind: "site_creation", newSiteName: "novo.com", newSiteUrl: "https://novo.com", amount: "" };
     const maint = { ...support, kind: "maintenance", siteId: SITE, newSiteName: "ignored", amount: "1.200,50" };
     const maintNew = { ...maint, siteId: "", newSiteName: "blog.com", newSiteUrl: "" };
-    const off = { ...support, hoursMode: "off", includedHours: "junk", extraHourPrice: "junk" };
+    const off = { ...support, hoursTracked: false, hoursVisible: false, hoursLimited: false, hoursPurchasable: false, includedHours: "junk", extraHourPrice: "junk" };
     const res = parseQuotePayload(JSON.stringify({ ...base, items: [site, maint, maintNew, off] }));
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -98,7 +103,7 @@ describe("the builder payload parser", () => {
       { newSite: { name: "novo.com", url: "https://novo.com" } },
       { siteId: SITE },
       { newSite: { name: "blog.com" } },
-      { siteIds: [SITE], newSites: [{ name: "shop.example.com" }], hoursMode: "off", includedMinutes: 0, extraHourCents: null },
+      { siteIds: [SITE], newSites: [{ name: "shop.example.com" }], hours: NO_HOURS, hoursMode: "off", includedMinutes: 0, extraHourCents: null },
     ]);
     expect(res.value.items.map((i) => i.amountCents)).toEqual([0, 120050, 120050, 35000]);
 
@@ -109,8 +114,20 @@ describe("the builder payload parser", () => {
     expect(prospect).toMatchObject({ ok: true, value: { clientId: null, prospectName: "Acme", prospectEmail: "a@b.co" } });
     if (prospect.ok) expect(prospect.value.items.map((i) => i.config)).toEqual([
       { newSite: { name: "ignored" } },
-      { newSites: [{ name: "shop.example.com" }], hoursMode: "off", includedMinutes: 0, extraHourCents: null },
+      { newSites: [{ name: "shop.example.com" }], hours: NO_HOURS, hoursMode: "off", includedMinutes: 0, extraHourCents: null },
     ]);
+  });
+
+  it("normalizes the hours flags and ignores the included hours without a limit", () => {
+    const tracked = { ...support, hoursLimited: false, hoursVisible: true, hoursPurchasable: true, includedHours: "junk", extraHourPrice: "junk" };
+    const res = parseQuotePayload(JSON.stringify({ ...base, items: [tracked] }));
+    expect(res.ok && res.value.items[0].config).toMatchObject({
+      hours: { tracked: true, visible: true, limited: false, includedMinutes: 0, extraHourCents: null, purchasable: false },
+      hoursMode: "internal",
+    });
+    const missing: Partial<typeof support> = { ...support };
+    delete missing.hoursTracked;
+    expect(parseQuotePayload(JSON.stringify({ ...base, items: [missing] }))).toEqual({ ok: false, error: "invalidPayload" });
   });
 
   it("needs a client in client mode, and a name for a new site that has an address", () => {

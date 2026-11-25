@@ -13,6 +13,7 @@ import { isBillingSubscription } from "@/lib/charge-utils";
 import { getClientCached, listSites } from "@/lib/core/clients";
 import { getHoursSummary } from "@/lib/core/hours";
 import { minutesToHoursInput } from "@/lib/hours";
+import { hoursPlanOf } from "@/lib/hours-plan";
 import { db, users } from "@/lib/db";
 import { formatCycle, formatMinutes, moneyInputValue, moneyPlaceholder } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
@@ -41,15 +42,15 @@ async function HoursCard({ clientId }: { clientId: string }) {
   return (
     <div className="mb-5 max-w-xl">
       <Card className="p-4">
-        {summary.mode === "internal" ? (
+        {summary.tracked && !summary.limited ? (
           <>
             <h2 className="text-[0.8125rem] font-medium text-muted">{fmt(t.ui.figHours, { month })}</h2>
             <b className="mt-1 block text-[1.5rem] leading-tight font-semibold tracking-[-0.02em] text-ink tabular">
               {formatMinutes(summary.usedMinutes)}
             </b>
-            <p className="mt-0.5 text-[0.8125rem] text-muted">{t.ui.hoursTeamOnly}</p>
+            <p className="mt-0.5 text-[0.8125rem] text-muted">{summary.visible ? t.ui.hoursClientSees : t.ui.hoursTeamOnly}</p>
           </>
-        ) : summary.mode === "package" ? (
+        ) : summary.limited ? (
           <>
             <div className="mb-1 flex items-baseline justify-between gap-2">
               <h2 className="text-[0.8125rem] font-medium text-muted">{t.ui.hoursBalance}</h2>
@@ -72,7 +73,7 @@ async function HoursCard({ clientId }: { clientId: string }) {
           </>
         )}
       </Card>
-      {summary.mode === "package" && summary.balanceMinutes < 0 ? (
+      {summary.limited && summary.balanceMinutes < 0 ? (
         <Callout tone="danger" className="mt-3">
           {t.hours.negativeWarning}
         </Callout>
@@ -156,7 +157,7 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
           labels={t.clients}
           clientId={client.id}
           currency={agency?.currency ?? "BRL"}
-          support={{ active: client.supportActive, generalTickets: client.generalTicketsEnabled, hoursMode: client.hoursMode }}
+          support={{ active: client.supportActive, generalTickets: client.generalTicketsEnabled, hours: hoursPlanOf(client) }}
           monthlyValue={moneyInputValue(client.supportMonthlyCents, locale)}
           hours={{
             included: minutesToHoursInput(client.includedMinutes),

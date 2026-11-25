@@ -8,9 +8,11 @@ import { getPortalPaymentsHome, type PortalPaymentsHome } from "./portal-payment
 import { listPortalQuotes, type PortalQuoteRow } from "./portal-quotes";
 import { listPortalTickets, type PortalTicketRow } from "./portal-tickets";
 
-/** The package balance the client sees; nothing about entries, notes or authors. */
+/** The hours the client sees; nothing about entries, notes or authors. */
 export type PortalHours = {
   cycle: string;
+  /** With included hours there is a balance; without, only the hours used. */
+  limited: boolean;
   includedMinutes: number;
   purchasedMinutes: number;
   usedMinutes: number;
@@ -18,7 +20,7 @@ export type PortalHours = {
 };
 
 export type PortalHome = {
-  /** Only in the package mode; null for team-only and off. */
+  /** Only while the hours are shown to the client; null otherwise. */
   hours: PortalHours | null;
   supportActive: boolean;
   /** null for portal collaborators: money is for admins only. */
@@ -62,9 +64,10 @@ export async function getPortalHome(
   ]);
   const summary = await getHoursSummary(clientId, undefined, { db, now: deps.now });
   const hours: PortalHours | null =
-    summary && summary.mode === "package"
+    summary && summary.tracked && summary.visible
       ? {
           cycle: summary.cycle,
+          limited: summary.limited,
           includedMinutes: summary.includedMinutes,
           purchasedMinutes: summary.purchasedMinutes,
           usedMinutes: summary.usedMinutes,

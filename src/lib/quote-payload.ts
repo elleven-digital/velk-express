@@ -1,5 +1,6 @@
 import type { QuoteItemConfig, QuoteItemKind } from "@/lib/db/schema";
 import { parseMoney } from "@/lib/format";
+import { hoursConfig, normalizeHoursPlan } from "@/lib/hours-plan";
 
 /**
  * What the quote builder posts in its hidden field: the typed values as the person left them (money
@@ -33,7 +34,6 @@ const MAX_ROWS = 200;
 /** The most minutes a support plan stores (the core refuses more). */
 const MAX_INCLUDED_MINUTES = 100_000;
 const KINDS: readonly QuoteItemKind[] = ["site_creation", "maintenance", "support"];
-const HOURS_MODES = ["off", "internal", "package"] as const;
 
 const bad = (error: PayloadErrorCode, item?: number, itemTitle?: string): PayloadResult =>
   item === undefined ? { ok: false, error } : { ok: false, error, item, itemTitle: itemTitle ?? "" };
@@ -106,20 +106,33 @@ export function parseQuotePayload(raw: unknown): PayloadResult {
       if (!rows) return bad("required", index, str(item.title).trim());
       if (rows.length > 0) config.newSites = rows;
 
-      const mode = HOURS_MODES.find((m) => m === item.hoursMode);
-      if (!mode) return bad("invalidPayload");
-      config.hoursMode = mode;
-      config.includedMinutes = 0;
-      config.extraHourCents = null;
-      if (mode === "package") {
+      const flags = [item.hoursTracked, item.hoursVisible, item.hoursLimited, item.hoursPurchasable];
+      if (flags.some((f) => typeof f !== "boolean")) return bad("invalidPayload");
+      const limited = item.hoursTracked === true && item.hoursLimited === true;
+      let includedMinutes = 0;
+      let extraHourCents: number | null = null;
+      if (limited) {
         const minutes = hoursToMinutes(str(item.includedHours));
         if (minutes === null) return bad("invalidHours", index, str(item.title).trim());
         const extraText = str(item.extraHourPrice).trim();
         const extra = extraText ? parseMoney(extraText) : null;
         if (extraText && extra === null) return bad("invalidExtraHour", index, str(item.title).trim());
-        config.includedMinutes = minutes;
-        config.extraHourCents = extra;
+        includedMinutes = minutes;
+        extraHourCents = extra;
       }
+      Object.assign(
+        config,
+        hoursConfig(
+          normalizeHoursPlan({
+            tracked: item.hoursTracked as boolean,
+            visible: item.hoursVisible as boolean,
+            limited: item.hoursLimited as boolean,
+            includedMinutes,
+            extraHourCents,
+            purchasable: item.hoursPurchasable as boolean,
+          }),
+        ),
+      );
     }
 
     items.push({

@@ -5,6 +5,7 @@ import { getQuote } from "@/lib/core/quotes";
 import type { Currency } from "@/lib/core/settings";
 import { moneyInputValue } from "@/lib/format";
 import { minutesToHoursInput } from "@/lib/hours";
+import { configHoursPlan } from "@/lib/hours-plan";
 import { getUserDict } from "@/lib/i18n/server";
 import { saveQuoteAction } from "../../actions";
 import { hoursLabelsOf, loadBuilderData } from "../../builder-data";
@@ -31,6 +32,7 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
     notes: quote.notes ?? "",
     items: items.map((item) => {
       const c = item.config;
+      const plan = configHoursPlan(c);
       return {
         kind: item.kind,
         title: item.title,
@@ -41,9 +43,12 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
         newSiteUrl: c.newSite?.url ?? "",
         siteIds: c.siteIds ?? [],
         newSites: (c.newSites ?? []).map((s) => ({ name: s.name, url: s.url ?? "" })),
-        hoursMode: c.hoursMode ?? "off",
-        includedHours: minutesToHoursInput(c.includedMinutes ?? 0),
-        extraHourPrice: c.extraHourCents ? moneyInputValue(c.extraHourCents, locale) : "",
+        hoursTracked: plan.tracked,
+        hoursVisible: plan.visible,
+        hoursLimited: plan.limited,
+        hoursPurchasable: plan.purchasable,
+        includedHours: minutesToHoursInput(plan.includedMinutes),
+        extraHourPrice: plan.extraHourCents ? moneyInputValue(plan.extraHourCents, locale) : "",
       };
     }),
   };

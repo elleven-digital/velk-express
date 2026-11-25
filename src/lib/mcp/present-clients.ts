@@ -35,9 +35,11 @@ export function presentSite(site: Site) {
 function presentSupport(client: Client, staff: boolean, currency: string | null) {
   return {
     active: client.supportActive,
-    // off, internal (team-only tracking, nothing in the portal) or package (included minutes and a balance)
-    hours_mode: client.hoursMode,
-    included_minutes_per_month: client.includedMinutes,
+    track_hours: client.hoursTracked,
+    show_hours_to_client: client.hoursVisible,
+    // null without included hours (no balance)
+    included_minutes_per_month: client.hoursLimited ? client.includedMinutes : null,
+    client_can_buy_hours: client.hoursPurchasable,
     general_tickets: client.generalTicketsEnabled,
     ...(staff
       ? {
@@ -49,10 +51,10 @@ function presentSupport(client: Client, staff: boolean, currency: string | null)
   };
 }
 
-/** One cycle's figures: what was used, and in the package the included, purchased and balance minutes. */
+/** One cycle's figures: what was used, and with included hours the included, purchased and balance minutes. */
 function hoursFigures(summary: HoursSummary) {
-  if (summary.mode === "off") return { cycle: summary.cycle };
-  if (summary.mode === "internal") return { cycle: summary.cycle, used_minutes: summary.usedMinutes };
+  if (!summary.tracked) return { cycle: summary.cycle };
+  if (!summary.limited) return { cycle: summary.cycle, used_minutes: summary.usedMinutes };
   return {
     cycle: summary.cycle,
     included_minutes: summary.includedMinutes,
@@ -62,9 +64,18 @@ function hoursFigures(summary: HoursSummary) {
   };
 }
 
-/** One cycle's hours as the client's page shows them: a balance only in the package. */
+/** How the hours are kept: tracked, shown to the client, and with included hours (a balance). */
+function hoursFlags(summary: HoursSummary) {
+  return {
+    track_hours: summary.tracked,
+    show_hours_to_client: summary.visible,
+    has_included_hours: summary.limited,
+  };
+}
+
+/** One cycle's hours as the client's page shows them: a balance only with included hours. */
 export function presentHours(summary: HoursSummary) {
-  return { mode: summary.mode, ...hoursFigures(summary) };
+  return { ...hoursFlags(summary), ...hoursFigures(summary) };
 }
 
 export function presentClientRow(
@@ -140,7 +151,7 @@ export function presentClientHours(
   const { summary } = input;
   return {
     client: { id: input.client.id, name: input.client.name, url: clientUrl(appUrl, input.client.id) },
-    hours_mode: summary.mode,
+    ...hoursFlags(summary),
     ...(input.notice ? { notice: input.notice } : {}),
     ...hoursFigures(summary),
     currency: input.currency,

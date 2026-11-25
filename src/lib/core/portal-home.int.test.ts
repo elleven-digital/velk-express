@@ -209,20 +209,33 @@ describe("getPortalHome hours", () => {
     await db.insert(timeEntries).values({ ticketId: ticket.id, clientId: client.id, minutes, workedOn: day, note: "secret note" });
   };
 
-  it("portal home has no hours for internal or off clients", async () => {
+  it("portal home has no hours for tracked-only or untracked clients", async () => {
     await log(A, 30);
     expect((await getPortalHome(asPortal(A, "admin"), db)).hours).toBeNull();
-    await db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ hoursTracked: true }).where(eq(clients.id, A.id));
     expect((await getPortalHome(asPortal(A, "admin"), db)).hours).toBeNull();
     expect((await getPortalHome(asPortal(A, "collaborator"), db)).hours).toBeNull();
   });
 
+  it("portal home shows the hours used, without a balance, when tracked and visible but not limited", async () => {
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true }).where(eq(clients.id, A.id));
+    await log(A, 90);
+    const home = await getPortalHome(asPortal(A, "admin"), db);
+    expect(home.hours).toMatchObject({ limited: false, includedMinutes: 0, usedMinutes: 90 });
+  });
+
+  it("portal home hides the hours when tracked and limited but not visible", async () => {
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursLimited: true, includedMinutes: 600 }).where(eq(clients.id, A.id));
+    await log(A, 90);
+    expect((await getPortalHome(asPortal(A, "admin"), db)).hours).toBeNull();
+  });
+
   it("portal home shows the package balance of the session company", async () => {
-    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 600 }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 }).where(eq(clients.id, A.id));
     await log(A, 90);
     const home = await getPortalHome(asPortal(A, "admin"), db);
     expect(home.hours).toMatchObject({ includedMinutes: 600, purchasedMinutes: 0, usedMinutes: 90, balanceMinutes: 510 });
-    expect(Object.keys(home.hours!).sort()).toEqual(["balanceMinutes", "cycle", "includedMinutes", "purchasedMinutes", "usedMinutes"]);
+    expect(Object.keys(home.hours!).sort()).toEqual(["balanceMinutes", "cycle", "includedMinutes", "limited", "purchasedMinutes", "usedMinutes"]);
     const collaborator = await getPortalHome(asPortal(A, "collaborator"), db);
     expect(collaborator.hours).toEqual(home.hours);
     await log(A, 600);
@@ -230,8 +243,8 @@ describe("getPortalHome hours", () => {
   });
 
   it("portal hours are always the session company's", async () => {
-    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 600 }).where(eq(clients.id, A.id));
-    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 120 }).where(eq(clients.id, B.id));
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 120 }).where(eq(clients.id, B.id));
     await log(A, 100);
     await log(B, 20);
     const a = await getPortalHome(asPortal(A, "admin"), db);
@@ -242,7 +255,7 @@ describe("getPortalHome hours", () => {
 
   it("an agency in Tokyo shows February's balance at 08:00 on 1 February there (still 31 January in São Paulo)", async () => {
     await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
-    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 600 }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 600 }).where(eq(clients.id, A.id));
     const [ticket] = await db
       .insert(tickets)
       .values({ clientId: A.id, number: 1, title: "T", type: "support", createdByType: "client", createdById: person.id })

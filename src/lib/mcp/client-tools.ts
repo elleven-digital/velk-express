@@ -33,6 +33,7 @@ import { listTickets } from "@/lib/core/ticket-list";
 import type { Client, Site } from "@/lib/db";
 import { parseMoney } from "@/lib/format";
 import { cycleKey } from "@/lib/hours";
+import { hoursPlanOf, type HoursPlan } from "@/lib/hours-plan";
 import {
   clientAccessUrl,
   clientUrl,
@@ -103,8 +104,8 @@ const MONEY = (what: string) =>
     .optional()
     .describe(`${what}, in the agency's currency as typed in the panel (e.g. "1200", "1.200,50" or "1,200.50"; not cents). null or "" clears it.`);
 
-/** A partial change of the support plan: what is left out keeps its current value. */
-export type SupportPatch = Partial<SupportInput>;
+/** A partial change of the support plan: what is left out keeps its current value, hours option by option. */
+export type SupportPatch = Partial<Omit<SupportInput, "hours">> & { hours?: Partial<HoursPlan> };
 
 /** `updateSupport` replaces the whole plan: the current plan with the patch on top. */
 export function mergeSupport(current: { client: Client; sites: Site[] }, patch: SupportPatch): SupportInput {
@@ -114,10 +115,14 @@ export function mergeSupport(current: { client: Client; sites: Site[] }, patch: 
     monthlyCents: patch.monthlyCents === undefined ? client.supportMonthlyCents : patch.monthlyCents,
     generalTickets: patch.generalTickets ?? client.generalTicketsEnabled,
     siteIdsInPlan: patch.siteIdsInPlan ?? sites.filter((s) => s.includedInSupport).map((s) => s.id),
-    hoursMode: patch.hoursMode ?? client.hoursMode,
-    includedMinutes: patch.includedMinutes ?? client.includedMinutes,
-    extraHourCents: patch.extraHourCents === undefined ? client.extraHourCents : patch.extraHourCents,
+    hours: { ...hoursPlanOf(client), ...patch.hours },
   };
+}
+
+/** Only the hours options given; undefined when none is, so an untouched plan does not count as a change. */
+function hoursPatch(patch: Partial<HoursPlan>): Partial<HoursPlan> | undefined {
+  const given = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<HoursPlan>;
+  return Object.keys(given).length > 0 ? given : undefined;
 }
 
 /** `updateSite` replaces the whole site (a missing `includedInSupport` is false): the site with the patch on top. */
@@ -190,7 +195,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "list_clients",
     {
       description:
-        "Lists the agency's clients the person can see (collaborators: per the agency's visibility rule), by name: contact e-mail, number of sites and support plan (hours_mode off, internal or package). Owners and managers also see the money." +
+        "Lists the agency's clients the person can see (collaborators: per the agency's visibility rule), by name: contact e-mail, number of sites and support plan (track_hours, show_hours_to_client, included_minutes_per_month: null without included hours, client_can_buy_hours). Owners and managers also see the money." +
         PEOPLE_TEXT,
       inputSchema: z.object({}),
       annotations: READ_ONLY,
@@ -207,7 +212,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "get_client",
     {
       description:
-        "One client as its panel page shows it: contact data, support plan (hours_mode: off, internal = time kept for the team only, package = included minutes and a balance), this month's hours in the agency's time zone, open tickets and sites (with their ids, for open_ticket's site_id). Owners and managers also get the money, the client's team, the ticket rotation and the support charge." +
+        "One client as its panel page shows it: contact data, support plan (track_hours; show_hours_to_client = the client sees the hours in the portal; included_minutes_per_month = included hours with a balance, null without; client_can_buy_hours = the client buys extra hours in the portal), this month's hours in the agency's time zone, open tickets and sites (with their ids, for open_ticket's site_id). Owners and managers also get the money, the client's team, the ticket rotation and the support charge." +
         PEOPLE_TEXT,
       inputSchema: z.object({ client_id: CLIENT_ID }),
       annotations: READ_ONLY,
@@ -223,7 +228,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "get_hours",
     {
       description:
-        "Owners and managers: a client's Hours tab for one monthly cycle (default: the current month in the agency's time zone) — hours_mode, the minutes (package: included, purchased, used and balance; internal: used), every time entry of the cycle (only support tickets count against the hours) and the hour packages with their charge. A client with hours off says so in notice." +
+        "Owners and managers: a client's Hours tab for one monthly cycle (default: the current month in the agency's time zone) — how hours are kept (track_hours, show_hours_to_client, has_included_hours), the minutes (with included hours: included, purchased, used and balance; without: used), every time entry of the cycle (only support tickets count against the hours) and the hour packages with their charge. A client whose hours are not tracked, or are kept for the team only, says so in notice." +
         PEOPLE_TEXT,
       inputSchema: z.object({ client_id: CLIENT_ID, cycle: CYCLE.optional() }),
       annotations: READ_ONLY,
@@ -241,7 +246,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
         Promise.all(purchases.map((p) => chargeFor(actor, { source: "hours", sourceId: p.id }))),
       ]);
       const t = dictFor(actor);
-      const notice = summary.mode === "off" ? t.hours.notTracked : summary.mode === "internal" ? t.hours.internalOnly : null;
+      const notice = !summary.tracked ? t.hours.notTracked : !summary.visible ? t.hours.internalOnly : null;
       return toolData({
         hours: presentClientHours(
           {
@@ -308,7 +313,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "update_client",
     {
       description:
-        "Owners and managers: changes a client's data and/or support plan. Only the fields given change. Support rules (as in the panel): without support_active there is no monthly value, no general tickets, no hours and no site in the plan. hours_mode: off; internal = time logged for the team only, no limit, nothing shown to the client; package = included_minutes_per_month and the extra hour price, with a balance the client sees in the portal (the included minutes and extra hour price only count in package). sites_in_plan replaces the set of the client's sites covered by the plan (ids from get_client).",
+        "Owners and managers: changes a client's data and/or support plan. Only the fields given change. Support rules (as in the panel): without support_active there is no monthly value, no general tickets, no hours and no site in the plan. Hours options, each needing the one before: track_hours (time is kept); show_hours_to_client (the client sees the hours in the portal); included_minutes_per_month (included hours with a balance; null removes them, and with them the extra hour price and buying); extra_hour_amount (needs included hours); client_can_buy_hours (the client buys extra hours in the portal: needs show_hours_to_client, included hours and an extra hour price). An option whose requirement is missing is turned off. The balance is informative: nothing is blocked. sites_in_plan replaces the set of the client's sites covered by the plan (ids from get_client).",
       inputSchema: z.object({
         client_id: CLIENT_ID,
         name: z.string().min(1).max(200).optional(),
@@ -318,9 +323,11 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
         support_active: z.boolean().optional(),
         monthly_amount: MONEY("The support plan's monthly value"),
         general_tickets: z.boolean().optional().describe("Lets the client open tickets not tied to a site."),
-        hours_mode: z.enum(["off", "internal", "package"]).optional(),
-        included_minutes_per_month: z.number().int().min(0).max(100000).optional(),
-        extra_hour_amount: MONEY("The price of one extra hour (package only)"),
+        track_hours: z.boolean().optional(),
+        show_hours_to_client: z.boolean().optional(),
+        included_minutes_per_month: z.number().int().min(0).max(100000).nullable().optional(),
+        extra_hour_amount: MONEY("The price of one extra hour (needs included hours)"),
+        client_can_buy_hours: z.boolean().optional(),
         sites_in_plan: z.array(z.string()).max(200).optional(),
       }),
       annotations: writeAnnotations({ destructive: false, idempotent: true }),
@@ -344,9 +351,17 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
         monthlyCents: monthly.value,
         generalTickets: args.general_tickets,
         siteIdsInPlan: args.sites_in_plan,
-        hoursMode: args.hours_mode,
-        includedMinutes: args.included_minutes_per_month,
-        extraHourCents: extra.value,
+        hours: hoursPatch({
+          tracked: args.track_hours,
+          visible: args.show_hours_to_client,
+          ...(args.included_minutes_per_month === undefined
+            ? {}
+            : args.included_minutes_per_month === null
+              ? { limited: false }
+              : { limited: true, includedMinutes: args.included_minutes_per_month }),
+          extraHourCents: extra.value,
+          purchasable: args.client_can_buy_hours,
+        }),
       };
 
       if (given(data)) {

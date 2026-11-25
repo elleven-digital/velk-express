@@ -21,6 +21,7 @@ import {
   type QuoteItemKind,
   type Site,
 } from "@/lib/db";
+import { hoursConfig, hoursPlanFromLegacy, normalizeHoursPlan, type HoursPlan } from "@/lib/hours-plan";
 import { getDict, isLocale } from "@/lib/i18n";
 import { buildQuoteSentMail } from "@/lib/mail/messages/quote-sent";
 import { sendMail } from "@/lib/mail/send";
@@ -82,10 +83,40 @@ function cleanNewSite(raw: unknown): Site1 | null {
   return { name: trimmed, url: normalized.value };
 }
 
+const validMinutes = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 100_000;
+const validCents = (v: unknown) => v === null || (Number.isInteger(v) && (v as number) >= 0 && (v as number) <= MAX_CENTS);
+
+/** A support item's hours plan as sent (the plan, or the legacy keys); null when malformed. */
+function itemHoursPlan(input: QuoteItemConfig): HoursPlan | null {
+  if (input.hours !== undefined) {
+    const h = input.hours as Record<string, unknown> | null;
+    if (!h || typeof h !== "object") return null;
+    const flags = ["tracked", "visible", "limited", "purchasable"] as const;
+    if (flags.some((f) => typeof h[f] !== "boolean")) return null;
+    const minutes = h.includedMinutes ?? 0;
+    const extra = h.extraHourCents ?? null;
+    if (!validMinutes(minutes) || !validCents(extra)) return null;
+    return {
+      tracked: h.tracked as boolean,
+      visible: h.visible as boolean,
+      limited: h.limited as boolean,
+      includedMinutes: minutes as number,
+      extraHourCents: extra as number | null,
+      purchasable: h.purchasable as boolean,
+    };
+  }
+  const mode = input.hoursMode ?? "off";
+  if (mode !== "off" && mode !== "internal" && mode !== "package") return null;
+  const minutes = input.includedMinutes ?? 0;
+  const extra = input.extraHourCents ?? null;
+  if (!validMinutes(minutes) || !validCents(extra)) return null;
+  return hoursPlanFromLegacy(mode, minutes, extra);
+}
+
 /**
  * Normalizes an item's config. `siteIds` carries the ids found in `siteId`/`siteIds` so the caller
  * can check them against the client. Hours settings only exist on support items and follow the
- * support form: outside the package there is nothing to include or charge.
+ * support form (see normalizeHoursPlan).
  */
 function cleanConfig(kind: QuoteItemKind, raw: QuoteItemConfig): Result<{ config: QuoteItemConfig; siteRefs: string[] }> {
   const input: QuoteItemConfig = raw && typeof raw === "object" ? raw : {};
@@ -122,15 +153,9 @@ function cleanConfig(kind: QuoteItemKind, raw: QuoteItemConfig): Result<{ config
   }
 
   if (kind === "support") {
-    const mode = input.hoursMode ?? "off";
-    if (mode !== "off" && mode !== "internal" && mode !== "package") return fail("required");
-    const minutes = input.includedMinutes ?? 0;
-    const extra = input.extraHourCents ?? null;
-    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 100_000) return fail("required");
-    if (extra !== null && (!Number.isInteger(extra) || extra < 0 || extra > MAX_CENTS)) return fail("required");
-    config.hoursMode = mode;
-    config.includedMinutes = mode === "package" ? minutes : 0;
-    config.extraHourCents = mode === "package" ? extra : null;
+    const plan = itemHoursPlan(input);
+    if (!plan) return fail("required");
+    Object.assign(config, hoursConfig(normalizeHoursPlan(plan)));
   }
   return ok({ config, siteRefs });
 }

@@ -4,6 +4,7 @@ import { resetTestDb } from "@/test/db";
 import type { Db } from "@/lib/db/client";
 import { agency, clientAssignments, clients, sites, users, type User } from "@/lib/db";
 import type { TeamSession } from "@/lib/auth/session";
+import { hoursColumns, NO_HOURS as noHours, type HoursPlan } from "@/lib/hours-plan";
 import {
   addSite,
   createClient,
@@ -25,7 +26,7 @@ let manager: TeamSession;
 let collab: TeamSession;
 let userId: Record<string, string>;
 
-const NO_HOURS = { hoursMode: "off" as const, includedMinutes: 0, extraHourCents: null };
+const NO_HOURS = { hours: noHours };
 const asTeam = (user: User): TeamSession => ({ userType: "agency", user });
 
 beforeEach(async () => {
@@ -321,57 +322,90 @@ describe("normalizeSiteUrl", () => {
   });
 });
 
-describe("updateSupport hours mode", () => {
+describe("updateSupport hours plan", () => {
   const base = { supportActive: true, monthlyCents: null, generalTickets: false, siteIdsInPlan: [] };
   const hoursOf = async (id: string) => {
     const [row] = await db.select().from(clients).where(eq(clients.id, id));
-    return { hoursMode: row.hoursMode, includedMinutes: row.includedMinutes, extraHourCents: row.extraHourCents };
+    return {
+      hoursTracked: row.hoursTracked,
+      hoursVisible: row.hoursVisible,
+      hoursLimited: row.hoursLimited,
+      hoursPurchasable: row.hoursPurchasable,
+      includedMinutes: row.includedMinutes,
+      extraHourCents: row.extraHourCents,
+    };
   };
+  const stored = (plan: HoursPlan) => {
+    const columns: Partial<ReturnType<typeof hoursColumns>> = hoursColumns(plan);
+    delete columns.hoursMode;
+    return columns;
+  };
+  const full: HoursPlan = { tracked: true, visible: true, limited: true, includedMinutes: 600, extraHourCents: 15000, purchasable: true };
+  const none = stored(noHours);
 
-  it("leaving the package clears included minutes and the extra hour price", async () => {
+  it("dropping the limit clears included minutes and the extra hour price", async () => {
     const id = await newClient("Acme");
-    const pkg = { ...base, hoursMode: "package" as const, includedMinutes: 600, extraHourCents: 15000 };
-    expect((await updateSupport(owner, id, pkg, { db })).ok).toBe(true);
-    expect(await hoursOf(id)).toEqual({ hoursMode: "package", includedMinutes: 600, extraHourCents: 15000 });
+    expect((await updateSupport(owner, id, { ...base, hours: full }, { db })).ok).toBe(true);
+    expect(await hoursOf(id)).toEqual(stored(full));
 
-    await updateSupport(owner, id, { ...pkg, hoursMode: "internal" }, { db });
-    expect(await hoursOf(id)).toEqual({ hoursMode: "internal", includedMinutes: 0, extraHourCents: null });
+    await updateSupport(owner, id, { ...base, hours: { ...full, limited: false } }, { db });
+    expect(await hoursOf(id)).toEqual({ ...none, hoursTracked: true, hoursVisible: true });
 
-    await updateSupport(owner, id, pkg, { db });
-    await updateSupport(owner, id, { ...pkg, hoursMode: "off" }, { db });
-    expect(await hoursOf(id)).toEqual({ hoursMode: "off", includedMinutes: 0, extraHourCents: null });
+    await updateSupport(owner, id, { ...base, hours: full }, { db });
+    await updateSupport(owner, id, { ...base, hours: { ...full, tracked: false } }, { db });
+    expect(await hoursOf(id)).toEqual(none);
 
-    await updateSupport(owner, id, pkg, { db });
-    await updateSupport(owner, id, { ...pkg, supportActive: false }, { db });
-    expect(await hoursOf(id)).toEqual({ hoursMode: "off", includedMinutes: 0, extraHourCents: null });
+    await updateSupport(owner, id, { ...base, hours: full }, { db });
+    await updateSupport(owner, id, { ...base, supportActive: false, hours: full }, { db });
+    expect(await hoursOf(id)).toEqual(none);
   });
 
-  it("the package keeps zero included minutes", async () => {
+  it("keeps zero included minutes and stores the legacy mode", async () => {
     const id = await newClient("Acme");
-    const res = await updateSupport(owner, id, { ...base, hoursMode: "package", includedMinutes: 0, extraHourCents: null }, { db });
-    expect(res.ok).toBe(true);
-    expect(await hoursOf(id)).toEqual({ hoursMode: "package", includedMinutes: 0, extraHourCents: null });
+    const plan = { ...full, includedMinutes: 0, extraHourCents: null, purchasable: false };
+    expect((await updateSupport(owner, id, { ...base, hours: plan }, { db })).ok).toBe(true);
+    expect(await hoursOf(id)).toEqual(stored(plan));
+    const [row] = await db.select().from(clients).where(eq(clients.id, id));
+    expect(row.hoursMode).toBe("package");
+  });
+
+  it("buying in the portal needs visible hours, included hours and a price", async () => {
+    const id = await newClient("Acme");
+    await updateSupport(owner, id, { ...base, hours: { ...full, visible: false } }, { db });
+    expect((await hoursOf(id)).hoursPurchasable).toBe(false);
+    await updateSupport(owner, id, { ...base, hours: { ...full, extraHourCents: null } }, { db });
+    expect((await hoursOf(id)).hoursPurchasable).toBe(false);
+    await updateSupport(owner, id, { ...base, hours: full }, { db });
+    expect((await hoursOf(id)).hoursPurchasable).toBe(true);
+  });
+
+  it("tracked only is stored as internal", async () => {
+    const id = await newClient("Acme");
+    await updateSupport(owner, id, { ...base, hours: { ...noHours, tracked: true } }, { db });
+    expect(await hoursOf(id)).toEqual({ ...none, hoursTracked: true });
+    const [row] = await db.select().from(clients).where(eq(clients.id, id));
+    expect(row.hoursMode).toBe("internal");
   });
 
   it("support off forces hours off", async () => {
     const id = await newClient("Acme");
-    await updateSupport(owner, id, { ...base, supportActive: false, hoursMode: "internal", includedMinutes: 120, extraHourCents: 100 }, { db });
-    expect(await hoursOf(id)).toEqual({ hoursMode: "off", includedMinutes: 0, extraHourCents: null });
+    await updateSupport(owner, id, { ...base, supportActive: false, hours: full }, { db });
+    expect(await hoursOf(id)).toEqual(none);
   });
 
-  it("only staff changes the hours mode", async () => {
+  it("only staff changes the hours plan", async () => {
     const id = await newClient("Acme");
     await db.insert(clientAssignments).values({ clientId: id, userId: userId.collab });
-    const res = await updateSupport(collab, id, { ...base, hoursMode: "package", includedMinutes: 60, extraHourCents: null }, { db });
+    const res = await updateSupport(collab, id, { ...base, hours: full }, { db });
     expect(res).toEqual({ ok: false, error: "forbidden" });
-    expect(await hoursOf(id)).toEqual({ hoursMode: "off", includedMinutes: 0, extraHourCents: null });
-    expect((await updateSupport(manager, id, { ...base, hoursMode: "internal", includedMinutes: 0, extraHourCents: null }, { db })).ok).toBe(true);
+    expect(await hoursOf(id)).toEqual(none);
+    expect((await updateSupport(manager, id, { ...base, hours: { ...noHours, tracked: true } }, { db })).ok).toBe(true);
   });
 
   it("refuses out-of-range hours values", async () => {
     const id = await newClient("Acme");
     for (const bad of [{ includedMinutes: -1 }, { includedMinutes: 100_001 }, { includedMinutes: 1.5 }, { extraHourCents: -5 }]) {
-      const input = { ...base, hoursMode: "package" as const, includedMinutes: 60, extraHourCents: null, ...bad };
+      const input = { ...base, hours: { ...full, extraHourCents: null, purchasable: false, ...bad } };
       expect(await updateSupport(owner, id, input, { db })).toEqual({ ok: false, error: "invalid" });
     }
   });

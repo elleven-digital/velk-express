@@ -481,15 +481,20 @@ describe("quotes schema", () => {
     expect(kept.status).toBe("draft");
   });
 
-  it("clients refuse hours without support and package fields outside the package", async () => {
+  it("clients start without hours and the hours flags carry no database checks", async () => {
     const c = await newClient("Hours");
-    const update = (v: Partial<typeof clients.$inferInsert>) =>
-      db.update(clients).set(v).where(eq(clients.id, c.id));
-    await expect(update({ hoursMode: "internal" })).rejects.toThrow();
-    await expect(update({ supportActive: true, hoursMode: "internal", includedMinutes: 60 })).rejects.toThrow();
-    await expect(update({ supportActive: true, hoursMode: "internal", extraHourCents: 100 })).rejects.toThrow();
-    await update({ supportActive: true, hoursMode: "package", includedMinutes: 600, extraHourCents: 100 });
-    await update({ supportActive: false, hoursMode: "off", includedMinutes: 0, extraHourCents: null });
+    expect(c).toMatchObject({
+      hoursTracked: false,
+      hoursVisible: false,
+      hoursLimited: false,
+      hoursPurchasable: false,
+      includedMinutes: 0,
+      extraHourCents: null,
+    });
+    // The legacy mode still needs support (the previous release relies on it).
+    await expect(db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, c.id))).rejects.toThrow();
+    // The old package checks are gone: the core normalizes the plan, the database only keeps it.
+    await db.update(clients).set({ hoursTracked: true, hoursLimited: true, includedMinutes: 600, extraHourCents: 100 }).where(eq(clients.id, c.id));
   });
 });
 

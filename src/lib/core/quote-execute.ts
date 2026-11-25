@@ -15,6 +15,7 @@ import {
   type QuoteItem,
   type QuoteLogEntry,
 } from "@/lib/db";
+import { configHoursPlan } from "@/lib/hours-plan";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { sendMail } from "@/lib/mail/send";
 import { linkQuoteChargesToClient } from "./charges";
@@ -166,9 +167,7 @@ async function run(db: Db, actor: TeamSession, quoteId: string, itemIds: string[
         await applySupportPlan(tx, client.id, {
           supportActive: true,
           monthlyCents: item.amountCents > 0 ? item.amountCents : null,
-          hoursMode: config.hoursMode ?? "off",
-          includedMinutes: config.includedMinutes ?? 0,
-          extraHourCents: config.extraHourCents ?? null,
+          hours: configHoursPlan(config),
         });
         log.push({
           action: "support",

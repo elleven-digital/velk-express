@@ -21,19 +21,21 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
       client_id: clientId,
       support_active: true,
       monthly_amount: "900,00",
-      hours_mode: "package",
+      track_hours: true,
+      show_hours_to_client: true,
       included_minutes_per_month: 300,
       extra_hour_amount: "120",
+      client_can_buy_hours: true,
     }),
   );
   const site = data(await call(ownerToken, "add_site", { client_id: clientId, name: "Loja", url: "ipe.test", in_support_plan: true })).site;
   data(await call(ownerToken, "update_client", { client_id: clientId, monthly_amount: "950,00" }));
   data(await call(ownerToken, "update_site", { client_id: clientId, site_id: site?.id, name: "Loja online" }));
-  const [plan] = await sql`select support_monthly_cents, hours_mode, included_minutes, extra_hour_cents from clients where id = ${clientId}`;
+  const [plan] = await sql`select support_monthly_cents, hours_tracked, hours_visible, hours_limited, hours_purchasable, included_minutes, extra_hour_cents from clients where id = ${clientId}`;
   const [siteRow] = await sql`select name, url, included_in_support from sites where id = ${site?.id}`;
   check(
     "update_client with only monthly_amount keeps the package and its minutes",
-    plan?.support_monthly_cents === 95000 && plan.hours_mode === "package" && plan.included_minutes === 300 && plan.extra_hour_cents === 12000,
+    plan?.support_monthly_cents === 95000 && plan.hours_tracked && plan.hours_visible && plan.hours_limited && plan.hours_purchasable && plan.included_minutes === 300 && plan.extra_hour_cents === 12000,
     plan,
   );
   check(
@@ -77,7 +79,7 @@ export async function run({ restore, sql, call, data, sentence, check, section, 
   const seen = data(await call(collabToken, "get_client", { client_id: clientId })).client;
   check(
     "get_client as a collaborator: the plan, no money, team or rotation",
-    seen?.support?.hours_mode === "package" && !("monthly_cents" in seen.support) && !("team" in seen) && !("rotation" in seen),
+    seen?.support?.track_hours === true && seen.support.included_minutes_per_month === 300 && !("monthly_cents" in seen.support) && !("team" in seen) && !("rotation" in seen),
     seen,
   );
   const refused = await call(collabToken, "get_hours", { client_id: clientId });

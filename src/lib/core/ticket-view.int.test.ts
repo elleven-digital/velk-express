@@ -217,17 +217,17 @@ describe("getTeamTicketView time and hours", () => {
 
     expect((await getTeamTicketView(owner, id, "en", db, { now }))!.hours).toBeNull();
 
-    await db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, acme.id));
-    expect((await getTeamTicketView(owner, id, "en", db, { now }))!.hours).toMatchObject({ mode: "internal", cycle: "2026-11", usedMinutes: 120 });
+    await db.update(clients).set({ hoursTracked: true }).where(eq(clients.id, acme.id));
+    expect((await getTeamTicketView(owner, id, "en", db, { now }))!.hours).toMatchObject({ limited: false, visible: false, cycle: "2026-11", usedMinutes: 120 });
 
-    await db.update(clients).set({ hoursMode: "package", includedMinutes: 60 }).where(eq(clients.id, acme.id));
+    await db.update(clients).set({ hoursTracked: true, hoursVisible: true, hoursLimited: true, includedMinutes: 60 }).where(eq(clients.id, acme.id));
     const pkg = (await getTeamTicketView(collab, id, "en", db, { now }))!.hours;
-    expect(pkg).toMatchObject({ mode: "package", usedMinutes: 120, balanceMinutes: -60, totalMinutes: 60 });
+    expect(pkg).toMatchObject({ limited: true, visible: true, usedMinutes: 120, balanceMinutes: -60, totalMinutes: 60 });
   });
 
   it("reads today and the current cycle in the agency's time zone", async () => {
     await db.update(agency).set({ timeZone: "Asia/Tokyo" }).where(eq(agency.id, 1));
-    await db.update(clients).set({ hoursMode: "internal" }).where(eq(clients.id, acme.id));
+    await db.update(clients).set({ hoursTracked: true }).where(eq(clients.id, acme.id));
     const id = await open(acme);
     const view = await getTeamTicketView(owner, id, "en", db, { now: () => new Date("2026-01-31T23:00:00Z") });
     expect(view!.today).toBe("2026-02-01");

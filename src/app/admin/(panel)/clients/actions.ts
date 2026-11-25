@@ -34,8 +34,17 @@ const siteIdSchema = idSchema.extend({ siteId: z.uuid() });
 /** Text fields each form sends back with an error. */
 const COMPANY_KEYS = ["name", "email", "phone", "notes"] as const;
 const SITE_KEYS = ["name", "url", "notes", "includedInSupport"] as const;
-const SUPPORT_KEYS = ["supportActive", "monthly", "generalTickets", "hoursMode", "includedHours", "extraHourValue"] as const;
-const HOURS_MODES = ["off", "internal", "package"] as const;
+const SUPPORT_KEYS = [
+  "supportActive",
+  "monthly",
+  "generalTickets",
+  "hoursTracked",
+  "hoursVisible",
+  "hoursLimited",
+  "hoursPurchasable",
+  "includedHours",
+  "extraHourValue",
+] as const;
 
 async function messages() {
   const { t } = await getUserDict();
@@ -109,13 +118,12 @@ export async function updateSupportAction(_prev: ClientState, formData: FormData
   // The ticked sites come back as one comma-joined value (ids hold no commas).
   const supportValues = () => ({ ...formValues(formData, SUPPORT_KEYS), siteIds: formData.getAll("siteIds").map(String).join(",") });
   if (rawMonthly && monthlyCents === null) return error("invalidMoney", supportValues());
-  const rawMode = text(formData, "hoursMode");
-  const hoursMode = HOURS_MODES.find((m) => m === rawMode) ?? "off";
-  // The package fields only count in the package; hidden leftovers elsewhere are ignored.
-  const isPackage = hoursMode === "package";
-  const includedMinutes = isPackage ? hoursToMinutes(text(formData, "includedHours")) : 0;
+  const tracked = checked(formData, "hoursTracked");
+  const limited = tracked && checked(formData, "hoursLimited");
+  // The included-hours fields only count with included hours; hidden leftovers elsewhere are ignored.
+  const includedMinutes = limited ? hoursToMinutes(text(formData, "includedHours")) : 0;
   if (includedMinutes === null) return error("invalidHours", supportValues());
-  const rawExtra = isPackage ? text(formData, "extraHourValue").trim() : "";
+  const rawExtra = limited ? text(formData, "extraHourValue").trim() : "";
   const extraHourCents = rawExtra ? parseMoney(rawExtra) : null;
   if (rawExtra && extraHourCents === null) return error("invalidExtraHour", supportValues());
   const res = await updateSupport(actor, ids.data.clientId, {
@@ -123,9 +131,14 @@ export async function updateSupportAction(_prev: ClientState, formData: FormData
     monthlyCents,
     generalTickets: checked(formData, "generalTickets"),
     siteIdsInPlan: formData.getAll("siteIds").map(String),
-    hoursMode,
-    includedMinutes,
-    extraHourCents,
+    hours: {
+      tracked,
+      visible: checked(formData, "hoursVisible"),
+      limited,
+      includedMinutes,
+      extraHourCents,
+      purchasable: checked(formData, "hoursPurchasable"),
+    },
   });
   if (!res.ok) return error(res.error, supportValues());
   refresh();

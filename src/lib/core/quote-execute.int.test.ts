@@ -23,6 +23,7 @@ import {
 import type { PortalSession, TeamSession } from "@/lib/auth/session";
 import type { MailMessage, sendMail } from "@/lib/mail/send";
 import { executeQuote } from "./quote-execute";
+import { hoursConfig, NO_HOURS } from "@/lib/hours-plan";
 import { invitePortalUser } from "./portal-users";
 import { saveQuote, sendQuote, type QuoteInput, type QuoteItemInput } from "./quotes";
 import { openPortalTicket } from "./tickets";
@@ -123,7 +124,7 @@ describe("executeQuote", () => {
           kind: "support",
           title: "Monthly support",
           amountCents: 200_00,
-          config: { hoursMode: "package", includedMinutes: 600, extraHourCents: 150_00, newSites: [{ name: "Blog" }] },
+          config: { ...hoursConfig({ tracked: true, visible: true, limited: true, includedMinutes: 600, extraHourCents: 150_00, purchasable: true }), newSites: [{ name: "Blog" }] },
         }),
       ],
     });
@@ -139,7 +140,10 @@ describe("executeQuote", () => {
       email: "bia@doces.com",
       supportActive: true,
       supportMonthlyCents: 200_00,
-      hoursMode: "package",
+      hoursTracked: true,
+      hoursVisible: true,
+      hoursLimited: true,
+      hoursPurchasable: true,
       includedMinutes: 600,
       extraHourCents: 150_00,
       generalTicketsEnabled: false,
@@ -457,13 +461,16 @@ describe("executeQuote", () => {
     expect(sent).toHaveLength(1);
   });
 
-  it("the support item replaces the client's plan with the item's hours mode", async () => {
+  it("the support item replaces the client's plan with the item's hours plan", async () => {
     const acme = await makeClient({
       name: "Acme",
       supportActive: true,
       supportMonthlyCents: 50_00,
       generalTicketsEnabled: true,
-      hoursMode: "package",
+      hoursTracked: true,
+      hoursVisible: true,
+      hoursLimited: true,
+      hoursPurchasable: true,
       includedMinutes: 600,
       extraHourCents: 100_00,
     });
@@ -475,7 +482,7 @@ describe("executeQuote", () => {
           kind: "support",
           title: "Support",
           amountCents: 300_00,
-          config: { hoursMode: "internal", siteIds: [covered], newSites: [{ name: "shop.acme.com", url: "https://shop.acme.com" }] },
+          config: { ...hoursConfig({ ...NO_HOURS, tracked: true }), siteIds: [covered], newSites: [{ name: "shop.acme.com", url: "https://shop.acme.com" }] },
         }),
       ],
     });
@@ -488,7 +495,10 @@ describe("executeQuote", () => {
       supportActive: true,
       supportMonthlyCents: 300_00,
       generalTicketsEnabled: true,
-      hoursMode: "internal",
+      hoursTracked: true,
+      hoursVisible: false,
+      hoursLimited: false,
+      hoursPurchasable: false,
       includedMinutes: 0,
       extraHourCents: null,
     });
@@ -499,16 +509,16 @@ describe("executeQuote", () => {
     expect(await db.select().from(tickets)).toHaveLength(0);
     expect(res.value.log[0]).toEqual({ action: "support", itemId: supportId, label: "Acme", id: acme.id, note: "replaced" });
 
-    // A free support item turns the support on without a monthly value and with the package mode.
+    // A free support item turns the support on without a monthly value and with the included hours.
     const beta = await makeClient({ name: "Beta" });
     const free = await sentQuote({
       clientId: beta.id,
-      items: [item({ kind: "support", title: "Support", amountCents: 0, config: { hoursMode: "package", includedMinutes: 120, extraHourCents: null } })],
+      items: [item({ kind: "support", title: "Support", amountCents: 0, config: hoursConfig({ tracked: true, visible: true, limited: true, includedMinutes: 120, extraHourCents: null, purchasable: false }) })],
     });
     const freeRes = await executeQuote(owner, free, await itemIdsOf(free), { db, send });
     if (!freeRes.ok) throw new Error(freeRes.error);
     const [betaRow] = await db.select().from(clients).where(eq(clients.id, beta.id));
-    expect(betaRow).toMatchObject({ supportActive: true, supportMonthlyCents: null, hoursMode: "package", includedMinutes: 120, extraHourCents: null });
+    expect(betaRow).toMatchObject({ supportActive: true, supportMonthlyCents: null, hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: false, includedMinutes: 120, extraHourCents: null });
     expect(freeRes.value.log[0]).toEqual({ action: "support", itemId: expect.any(String), label: "Beta", id: beta.id });
   });
 

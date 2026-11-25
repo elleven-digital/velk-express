@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/icons";
-import { Button, Callout, Card, Field, Input, LinkButton, SectionTitle, Select, Textarea, cn } from "@/components/ui";
+import { Button, Callout, Card, Checkbox, Field, Input, LinkButton, SectionTitle, Select, Textarea, cn } from "@/components/ui";
 import type { Currency } from "@/lib/core/settings";
 import { formatMoney, moneyPlaceholder, parseMoney } from "@/lib/format";
 import { fmt, type Dict, type Locale } from "@/lib/i18n";
@@ -11,7 +11,6 @@ import { missingSiteId } from "@/lib/quote-utils";
 export type BuilderClient = { id: string; name: string };
 export type BuilderSite = { id: string; name: string; clientId: string };
 export type BuilderKind = "site_creation" | "maintenance" | "support";
-export type HoursMode = "off" | "internal" | "package";
 
 type NewSiteRow = { key: string; name: string; url: string };
 /** One item as the form holds it: every number is still the text that was typed. */
@@ -26,7 +25,10 @@ export type BuilderItem = {
   newSiteUrl: string;
   siteIds: string[];
   newSites: NewSiteRow[];
-  hoursMode: HoursMode;
+  hoursTracked: boolean;
+  hoursVisible: boolean;
+  hoursLimited: boolean;
+  hoursPurchasable: boolean;
   includedHours: string;
   extraHourPrice: string;
 };
@@ -44,7 +46,18 @@ export type BuilderState = { error?: string } | null;
 export type BuilderLabels = Dict["quotes"];
 export type HoursLabels = Pick<
   Dict["clients"],
-  "hoursMode" | "hoursOff" | "hoursInternal" | "hoursInternalHint" | "hoursToggle" | "hoursHint" | "includedHours" | "extraHourValue" | "extraHourHint"
+  | "hoursMode"
+  | "hoursTrack"
+  | "hoursTrackHint"
+  | "hoursVisible"
+  | "hoursVisibleHint"
+  | "hoursLimit"
+  | "hoursLimitHint"
+  | "includedHours"
+  | "extraHourValue"
+  | "extraHourHint"
+  | "hoursPurchasable"
+  | "hoursPurchasableHint"
 >;
 
 function emptyItem(kind: BuilderKind, key: string): BuilderItem {
@@ -59,7 +72,10 @@ function emptyItem(kind: BuilderKind, key: string): BuilderItem {
     newSiteUrl: "",
     siteIds: [],
     newSites: [],
-    hoursMode: "off",
+    hoursTracked: false,
+    hoursVisible: false,
+    hoursLimited: false,
+    hoursPurchasable: false,
     includedHours: "",
     extraHourPrice: "",
   };
@@ -160,7 +176,10 @@ export function QuoteBuilder({
       // sites deleted since the quote was saved cannot be covered any more
       siteIds: item.siteIds.filter((id) => !missingSiteId(id, clientSites)),
       newSites: item.newSites.map(({ name, url }) => ({ name, url })),
-      hoursMode: item.hoursMode,
+      hoursTracked: item.hoursTracked,
+      hoursVisible: item.hoursVisible,
+      hoursLimited: item.hoursLimited,
+      hoursPurchasable: item.hoursPurchasable,
       includedHours: item.includedHours,
       extraHourPrice: item.extraHourPrice,
     })),
@@ -171,11 +190,6 @@ export function QuoteBuilder({
     maintenance: labels.kindMaintenance,
     support: labels.kindSupport,
   };
-  const modes: { value: HoursMode; label: string; hint?: string }[] = [
-    { value: "off", label: hoursLabels.hoursOff },
-    { value: "internal", label: hoursLabels.hoursInternal, hint: hoursLabels.hoursInternalHint },
-    { value: "package", label: hoursLabels.hoursToggle, hint: hoursLabels.hoursHint },
-  ];
 
   return (
     // Submitted by hand: a form action would reset the form afterwards and clear the selects and number
@@ -379,50 +393,64 @@ export function QuoteBuilder({
 
                     <fieldset className="space-y-2.5">
                       <legend className="mb-2.5 text-[0.875rem] font-medium text-ink">{hoursLabels.hoursMode}</legend>
-                      {modes.map((m) => (
-                        <label key={m.value} className="flex cursor-pointer items-start gap-3">
-                          <input
-                            type="radio"
-                            name={`hours-${item.key}`}
-                            value={m.value}
-                            checked={item.hoursMode === m.value}
-                            onChange={() => patch(item.key, { hoursMode: m.value })}
-                            className="mt-0.5 size-4 accent-brand"
+                      <Checkbox
+                        checked={item.hoursTracked}
+                        onChange={(e) => patch(item.key, { hoursTracked: e.target.checked })}
+                        label={hoursLabels.hoursTrack}
+                        hint={hoursLabels.hoursTrackHint}
+                      />
+                      {item.hoursTracked ? (
+                        <div className="space-y-2.5 pl-7">
+                          <Checkbox
+                            checked={item.hoursVisible}
+                            onChange={(e) => patch(item.key, { hoursVisible: e.target.checked })}
+                            label={hoursLabels.hoursVisible}
+                            hint={hoursLabels.hoursVisibleHint}
                           />
-                          <span>
-                            <span className="block text-[0.875rem] font-medium text-ink">{m.label}</span>
-                            {m.hint ? <span className="mt-0.5 block text-[0.8125rem] text-muted">{m.hint}</span> : null}
-                          </span>
-                        </label>
-                      ))}
-                      {item.hoursMode === "package" ? (
-                        <div className="space-y-4 pl-7 pt-2">
-                          <Field label={hoursLabels.includedHours} htmlFor={`ih-${item.key}`}>
-                            <Input
-                              id={`ih-${item.key}`}
-                              type="number"
-                              inputMode="decimal"
-                              min={0}
-                              step="any"
-                              value={item.includedHours}
-                              onChange={(e) => patch(item.key, { includedHours: e.target.value })}
-                              className="max-w-48"
-                            />
-                          </Field>
-                          <Field
-                            label={`${fmt(hoursLabels.extraHourValue, { currency })} (${labels.optional})`}
-                            htmlFor={`eh-${item.key}`}
-                            hint={hoursLabels.extraHourHint}
-                          >
-                            <Input
-                              id={`eh-${item.key}`}
-                              inputMode="decimal"
-                              placeholder={placeholder}
-                              value={item.extraHourPrice}
-                              onChange={(e) => patch(item.key, { extraHourPrice: e.target.value })}
-                              className="max-w-48"
-                            />
-                          </Field>
+                          <Checkbox
+                            checked={item.hoursLimited}
+                            onChange={(e) => patch(item.key, { hoursLimited: e.target.checked })}
+                            label={hoursLabels.hoursLimit}
+                            hint={hoursLabels.hoursLimitHint}
+                          />
+                          {item.hoursLimited ? (
+                            <div className="space-y-4 pl-7 pt-1.5">
+                              <Field label={hoursLabels.includedHours} htmlFor={`ih-${item.key}`}>
+                                <Input
+                                  id={`ih-${item.key}`}
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step="any"
+                                  value={item.includedHours}
+                                  onChange={(e) => patch(item.key, { includedHours: e.target.value })}
+                                  className="max-w-48"
+                                />
+                              </Field>
+                              <Field
+                                label={`${fmt(hoursLabels.extraHourValue, { currency })} (${labels.optional})`}
+                                htmlFor={`eh-${item.key}`}
+                                hint={hoursLabels.extraHourHint}
+                              >
+                                <Input
+                                  id={`eh-${item.key}`}
+                                  inputMode="decimal"
+                                  placeholder={placeholder}
+                                  value={item.extraHourPrice}
+                                  onChange={(e) => patch(item.key, { extraHourPrice: e.target.value })}
+                                  className="max-w-48"
+                                />
+                              </Field>
+                              {item.hoursVisible ? (
+                                <Checkbox
+                                  checked={item.hoursPurchasable}
+                                  onChange={(e) => patch(item.key, { hoursPurchasable: e.target.checked })}
+                                  label={hoursLabels.hoursPurchasable}
+                                  hint={hoursLabels.hoursPurchasableHint}
+                                />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </fieldset>

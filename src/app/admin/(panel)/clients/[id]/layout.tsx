@@ -42,13 +42,13 @@ export default async function ClientLayout({
           <Badge tone={client.supportActive ? "ok" : "muted"}>
             {client.supportActive ? t.clients.supportActive : t.clients.supportInactive}
           </Badge>
-          {client.supportActive && client.hoursMode === "package" ? (
+          {client.supportActive && client.hoursLimited ? (
             <span>
               {formatMinutes(client.includedMinutes)}
               {t.clients.perMonth}
             </span>
           ) : null}
-          {client.supportActive && client.hoursMode === "internal" ? <span>{t.clients.hoursInternalShort}</span> : null}
+          {client.supportActive && client.hoursTracked && !client.hoursLimited ? <span>{t.clients.hoursTrackedShort}</span> : null}
           {client.email ? (
             <a href={`mailto:${client.email}`} className="underline-offset-[3px] [overflow-wrap:anywhere] hover:text-ink hover:underline">
               {client.email}

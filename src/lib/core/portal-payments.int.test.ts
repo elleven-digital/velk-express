@@ -60,7 +60,7 @@ beforeEach(async () => {
   [A, B] = await db
     .insert(clients)
     .values([
-      { name: "Alpha", supportActive: true, supportMonthlyCents: 150_000, hoursMode: "package", includedMinutes: 600, extraHourCents: 20_000 },
+      { name: "Alpha", supportActive: true, supportMonthlyCents: 150_000, hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: true, includedMinutes: 600, extraHourCents: 20_000 },
       { name: "Beta" },
     ])
     .returning();
@@ -175,9 +175,12 @@ describe("buyHours", () => {
     await db.update(clients).set({ extraHourCents: null }).where(eq(clients.id, A.id));
     expect(await buyHours(admin(), 2, { db, providers: both })).toEqual({ ok: false, error: "nothingToCharge" });
     await db.update(clients).set({ extraHourCents: 20_000 }).where(eq(clients.id, A.id));
-    await db.update(clients).set({ hoursMode: "internal", includedMinutes: 0, extraHourCents: null }).where(eq(clients.id, A.id));
+    await db.update(clients).set({ hoursTracked: true, hoursVisible: false, hoursLimited: false, hoursPurchasable: false, includedMinutes: 0, extraHourCents: null }).where(eq(clients.id, A.id));
     expect(await buyHours(admin(), 2, { db, providers: both })).toEqual({ ok: false, error: "nothingToCharge" });
-    await db.update(clients).set({ hoursMode: "package", includedMinutes: 600, extraHourCents: 20_000 }).where(eq(clients.id, A.id));
+    // a price and included hours are not enough: the client has to be allowed to buy
+    await db.update(clients).set({ hoursVisible: true, hoursLimited: true, includedMinutes: 600, extraHourCents: 20_000 }).where(eq(clients.id, A.id));
+    expect(await buyHours(admin(), 2, { db, providers: both })).toEqual({ ok: false, error: "nothingToCharge" });
+    await db.update(clients).set({ hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: true, includedMinutes: 600, extraHourCents: 20_000 }).where(eq(clients.id, A.id));
     expect(await db.select().from(hourPurchases)).toHaveLength(0);
     expect(await db.select().from(charges)).toHaveLength(0);
 
@@ -303,7 +306,7 @@ describe("buyHours", () => {
 
   it("the purchase note and the label follow the portal user's language", async () => {
     await db.insert(clientMemberships).values({ clientUserId: helper.id, clientId: B.id, role: "admin" });
-    await db.update(clients).set({ supportActive: true, hoursMode: "package", includedMinutes: 60, extraHourCents: 5_000 }).where(eq(clients.id, B.id));
+    await db.update(clients).set({ supportActive: true, hoursTracked: true, hoursVisible: true, hoursLimited: true, hoursPurchasable: true, includedMinutes: 60, extraHourCents: 5_000 }).where(eq(clients.id, B.id));
     const res = await buyHours(asPortal(B, helper, "admin"), 1, { db, providers: both });
     if (!res.ok) throw new Error(res.error);
     const [row] = await db.select().from(charges);

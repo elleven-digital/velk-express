@@ -166,6 +166,12 @@ describe("quotes", () => {
           item({ description: "  desc " }),
           item({ kind: "support", title: "Support", amountCents: 300_00, config: { hoursMode: "internal", includedMinutes: 600, extraHourCents: 50_00 } }),
           item({ kind: "support", title: "Package", config: { hoursMode: "package", includedMinutes: 600, extraHourCents: 50_00 } }),
+          item({
+            kind: "support",
+            title: "Plan",
+            amountCents: 0,
+            config: { hours: { tracked: true, visible: false, limited: true, includedMinutes: 300, extraHourCents: 40_00, purchasable: true } },
+          }),
         ],
       }),
     );
@@ -177,10 +183,29 @@ describe("quotes", () => {
       ["Website", false, 0],
       ["Support", true, 1],
       ["Package", true, 2],
+      ["Plan", true, 3],
     ]);
     expect(got.value.items[0].description).toBe("desc");
-    expect(got.value.items[1].config).toEqual({ hoursMode: "internal", includedMinutes: 0, extraHourCents: null });
-    expect(got.value.items[2].config).toEqual({ hoursMode: "package", includedMinutes: 600, extraHourCents: 50_00 });
+    // The legacy keys still work as input and are stored as a plan, the legacy keys written alongside.
+    expect(got.value.items[1].config).toEqual({
+      hours: { tracked: true, visible: false, limited: false, includedMinutes: 0, extraHourCents: null, purchasable: false },
+      hoursMode: "internal",
+      includedMinutes: 0,
+      extraHourCents: null,
+    });
+    expect(got.value.items[2].config).toEqual({
+      hours: { tracked: true, visible: true, limited: true, includedMinutes: 600, extraHourCents: 50_00, purchasable: true },
+      hoursMode: "package",
+      includedMinutes: 600,
+      extraHourCents: 50_00,
+    });
+    // A plan that is limited but not visible: the best legacy match is internal, with no included minutes there.
+    expect(got.value.items[3].config).toEqual({
+      hours: { tracked: true, visible: false, limited: true, includedMinutes: 300, extraHourCents: 40_00, purchasable: false },
+      hoursMode: "internal",
+      includedMinutes: 300,
+      extraHourCents: 40_00,
+    });
     expect(got.value.totals).toEqual({ oneTimeCents: 1000_00, monthlyCents: 300_00 + 1000_00 });
     const bad = await saveQuote(owner, prospect({ items: [item({ kind: "support", config: { hoursMode: "package", includedMinutes: 100_001 } })] }), { db });
     expect(bad).toEqual({ ok: false, error: "required" });

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Callout, Card, Checkbox, Field, Input, SectionTitle, Textarea, cn } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SubmitButton } from "@/components/submit-button";
+import type { HoursPlan } from "@/lib/hours-plan";
 import type { Dict } from "@/lib/i18n";
 import { fmt } from "@/lib/i18n";
 import type { ClientState } from "./client-state";
@@ -110,7 +111,7 @@ export function SupportForm({
   labels: ClientLabels;
   clientId: string;
   currency: string;
-  support: { active: boolean; generalTickets: boolean; hoursMode: "off" | "internal" | "package" };
+  support: { active: boolean; generalTickets: boolean; hours: Pick<HoursPlan, "tracked" | "visible" | "limited" | "purchasable"> };
   monthlyValue: string;
   /** The saved package, as the fields show it: decimal hours and the money text. */
   hours: { included: string; extraValue: string };
@@ -122,12 +123,9 @@ export function SupportForm({
   const [state, formAction] = useActionState(action, null);
   const v = state?.values;
   const ticked = new Set(v?.siteIds ? v.siteIds.split(",") : []);
-  const mode = v?.hoursMode ?? support.hoursMode;
-  const modes = [
-    { value: "off", label: labels.hoursOff, hint: undefined },
-    { value: "internal", label: labels.hoursInternal, hint: labels.hoursInternalHint },
-    { value: "package", label: labels.hoursToggle, hint: labels.hoursHint },
-  ];
+  // After a refused save the fields show what was sent; otherwise the saved plan.
+  const on = (key: "hoursTracked" | "hoursVisible" | "hoursLimited" | "hoursPurchasable", saved: boolean) =>
+    v ? v[key] === "on" : saved;
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="clientId" value={clientId} />
@@ -135,38 +133,44 @@ export function SupportForm({
       <Field label={`${fmt(labels.monthlyValue, { currency })} (${labels.optional})`} htmlFor="s-monthly">
         <Input id="s-monthly" name="monthly" inputMode="decimal" defaultValue={v?.monthly ?? monthlyValue} placeholder={placeholder} className="max-w-48" />
       </Field>
-      {/* the package fields show only while "package" is picked: CSS, so no client code */}
+      {/* each option shows only while the one it depends on is ticked: CSS, so no client code */}
       <fieldset className="group/hours space-y-2.5">
         <legend className="mb-2.5 text-[0.875rem] font-medium text-ink">{labels.hoursMode}</legend>
-        {modes.map((m) => (
-          <label key={m.value} className="group flex cursor-pointer items-start gap-3">
-            <input type="radio" name="hoursMode" value={m.value} defaultChecked={mode === m.value} className="mt-0.5 size-4 accent-brand" />
-            <span>
-              <span className="block text-[0.875rem] font-medium text-ink">{m.label}</span>
-              {m.hint ? <span className="mt-0.5 block text-[0.8125rem] text-muted">{m.hint}</span> : null}
-            </span>
-          </label>
-        ))}
-        <div className="hidden space-y-4 pl-7 pt-2 group-has-[[value=package]:checked]/hours:block">
-          <Field label={labels.includedHours} htmlFor="s-included">
-            <Input
-              id="s-included"
-              name="includedHours"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="any"
-              defaultValue={v?.includedHours ?? hours.included}
-              className="max-w-48"
-            />
-          </Field>
-          <Field
-            label={`${fmt(labels.extraHourValue, { currency })} (${labels.optional})`}
-            htmlFor="s-extra"
-            hint={labels.extraHourHint}
-          >
-            <Input id="s-extra" name="extraHourValue" inputMode="decimal" defaultValue={v?.extraHourValue ?? hours.extraValue} placeholder={placeholder} className="max-w-48" />
-          </Field>
+        <Checkbox name="hoursTracked" defaultChecked={on("hoursTracked", support.hours.tracked)} label={labels.hoursTrack} hint={labels.hoursTrackHint} />
+        <div className="hidden space-y-2.5 pl-7 group-has-[[name=hoursTracked]:checked]/hours:block">
+          <Checkbox name="hoursVisible" defaultChecked={on("hoursVisible", support.hours.visible)} label={labels.hoursVisible} hint={labels.hoursVisibleHint} />
+          <div className="group/limit space-y-2.5">
+            <Checkbox name="hoursLimited" defaultChecked={on("hoursLimited", support.hours.limited)} label={labels.hoursLimit} hint={labels.hoursLimitHint} />
+            <div className="hidden space-y-4 pl-7 pt-1.5 group-has-[[name=hoursLimited]:checked]/limit:block">
+              <Field label={labels.includedHours} htmlFor="s-included">
+                <Input
+                  id="s-included"
+                  name="includedHours"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="any"
+                  defaultValue={v?.includedHours ?? hours.included}
+                  className="max-w-48"
+                />
+              </Field>
+              <Field
+                label={`${fmt(labels.extraHourValue, { currency })} (${labels.optional})`}
+                htmlFor="s-extra"
+                hint={labels.extraHourHint}
+              >
+                <Input id="s-extra" name="extraHourValue" inputMode="decimal" defaultValue={v?.extraHourValue ?? hours.extraValue} placeholder={placeholder} className="max-w-48" />
+              </Field>
+              <div className="hidden group-has-[[name=hoursVisible]:checked]/hours:block">
+                <Checkbox
+                  name="hoursPurchasable"
+                  defaultChecked={on("hoursPurchasable", support.hours.purchasable)}
+                  label={labels.hoursPurchasable}
+                  hint={labels.hoursPurchasableHint}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </fieldset>
       <Checkbox name="generalTickets" defaultChecked={v ? v.generalTickets === "on" : support.generalTickets} label={labels.generalToggle} hint={labels.generalHint} />

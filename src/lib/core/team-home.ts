@@ -1,5 +1,5 @@
 import "server-only";
-import { and, between, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, between, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { assignedClientIds, isStaff } from "@/lib/access";
 import { agencyTimeZone } from "@/lib/agency";
 import type { TeamSession } from "@/lib/auth/session";
@@ -86,9 +86,9 @@ async function staffFigures(actor: TeamSession, now: Date, db: Db): Promise<Staf
     .from(timeEntries)
     .innerJoin(tickets, eq(tickets.id, timeEntries.ticketId))
     .innerJoin(clients, eq(clients.id, timeEntries.clientId))
-    .where(and(ne(clients.hoursMode, "off"), eq(tickets.type, "support"), between(timeEntries.workedOn, start, end)));
+    .where(and(eq(clients.hoursTracked, true), eq(tickets.type, "support"), between(timeEntries.workedOn, start, end)));
 
-  // getHoursSummary's balance (included + paid purchases - used) per package client, in SQL.
+  // getHoursSummary's balance (included + paid purchases - used) per client with included hours, in SQL.
   const usedOf = sql`coalesce((select sum(te.minutes) from time_entries te inner join tickets t on t.id = te.ticket_id
     where te.client_id = ${clients.id} and t.type = 'support' and te.worked_on between ${start}::date and ${end}::date), 0)`;
   const boughtOf = sql`coalesce((select sum(hp.minutes) from hour_purchases hp
@@ -96,7 +96,7 @@ async function staffFigures(actor: TeamSession, now: Date, db: Db): Promise<Staf
   const [negative] = await db
     .select({ n: count() })
     .from(clients)
-    .where(and(eq(clients.hoursMode, "package"), sql`${clients.includedMinutes} + ${boughtOf} - ${usedOf} < 0`));
+    .where(and(eq(clients.hoursLimited, true), sql`${clients.includedMinutes} + ${boughtOf} - ${usedOf} < 0`));
 
   return {
     role: "staff",
