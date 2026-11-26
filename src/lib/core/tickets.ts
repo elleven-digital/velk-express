@@ -46,6 +46,8 @@ export type NewTeamTicket = {
   title: string;
   bodyHtml?: string;
   valueCents?: number | null;
+  /** A project (staff only, like the value): the portal lists it under Projects. */
+  isProject?: boolean;
   /** Uploaded files (by the opener, tied to nothing yet) that go with the first message. */
   attachmentIds?: string[];
 };
@@ -90,6 +92,8 @@ export async function insertTicket(
     type: "single" | "support";
     title: string;
     valueCents: number | null;
+    /** A project: the portal lists it under Projects. */
+    isProject?: boolean;
     /** The quote item that made this ticket (quote execution only). */
     quoteItemId?: string | null;
     createdBy: ActorRef;
@@ -105,6 +109,7 @@ export async function insertTicket(
       type: input.type,
       title: input.title,
       valueCents: input.valueCents,
+      isProject: input.isProject ?? false,
       quoteItemId: input.quoteItemId ?? null,
       createdByType: input.createdBy.type,
       createdById: input.createdBy.id,
@@ -192,6 +197,8 @@ export async function createTicket(
       title: content.value.title,
       // Only a single ticket carries a value; a support ticket is covered by the monthly fee.
       valueCents: input.type === "single" ? valueCents : null,
+      // Like the value, marking a project is staff business: dropped for anyone else.
+      isProject: isStaff(actor.user) && input.isProject === true,
       createdBy: { type: "agency", id: actor.user.id },
     });
     await assignUserToTicket({ id: ticket.id, clientId }, actor.user.id, tx);
@@ -370,6 +377,24 @@ export async function removeTicketAssignee(
   await db
     .delete(ticketAssignments)
     .where(and(eq(ticketAssignments.ticketId, found.value.id), eq(ticketAssignments.userId, userId)));
+  return ok();
+}
+
+/**
+ * Marks a ticket as a project (the portal lists it under Projects) or back as a plain ticket.
+ * Staff only, on a ticket they can see. Either type of ticket can be a project.
+ */
+export async function setTicketProject(
+  actor: TeamSession,
+  ticketId: string,
+  isProject: boolean,
+  deps: Deps = {},
+): Promise<Result> {
+  if (!isStaff(actor.user)) return fail("forbidden");
+  const db = deps.db ?? appDb;
+  const found = await findTicket(actor, ticketId, db);
+  if (!found.ok) return found;
+  await db.update(tickets).set({ isProject }).where(eq(tickets.id, found.value.id));
   return ok();
 }
 

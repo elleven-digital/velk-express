@@ -259,6 +259,8 @@ export const tickets = pgTable(
     status: ticketStatus("status").notNull().default("open"),
     title: text("title").notNull(),
     valueCents: integer("value_cents"),
+    // A project (a new site, say): the portal lists it under Projects, not among the tickets.
+    isProject: boolean("is_project").notNull().default(false),
     // Quote item that created this ticket (set by quote execution); null when it was made by hand.
     quoteItemId: uuid("quote_item_id").references((): AnyPgColumn => quoteItems.id, { onDelete: "set null" }),
     createdByType: actorType("created_by_type").notNull(),
@@ -397,6 +399,24 @@ export const ticketReads = pgTable(
   (t) => [
     primaryKey({ columns: [t.userId, t.ticketId] }),
     index("ticket_reads_ticket_id_idx").on(t.ticketId),
+  ],
+);
+
+/** Per client portal login, when they last opened each ticket (drives the portal's unread count). */
+export const clientTicketReads = pgTable(
+  "client_ticket_reads",
+  {
+    clientUserId: uuid("client_user_id")
+      .notNull()
+      .references(() => clientUsers.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.clientUserId, t.ticketId] }),
+    index("client_ticket_reads_ticket_id_idx").on(t.ticketId),
   ],
 );
 

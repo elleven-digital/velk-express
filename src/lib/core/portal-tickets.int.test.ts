@@ -20,7 +20,7 @@ import {
 } from "@/lib/db";
 import type { PortalSession, TeamSession } from "@/lib/auth/session";
 import { postMessage, editMessage, deleteMessage } from "./messages";
-import { getPortalTicketView, listPortalTickets, portalNewTicketOptions } from "./portal-tickets";
+import { getPortalTicketView, listPortalTickets, markPortalTicketRead, portalNewTicketOptions, portalTicketUnread } from "./portal-tickets";
 import { openPortalTicket } from "./tickets";
 
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
@@ -100,7 +100,18 @@ describe("listPortalTickets", () => {
   it("carries no money or internal fields", async () => {
     await open(A, "Plain");
     const [row] = await listPortalTickets(asPortal(A), db);
-    expect(Object.keys(row).sort()).toEqual(["id", "lastActivity", "number", "siteName", "status", "title", "turn"]);
+    expect(Object.keys(row).sort()).toEqual([
+      "closedAt",
+      "createdAt",
+      "id",
+      "isProject",
+      "lastActivity",
+      "number",
+      "siteName",
+      "status",
+      "title",
+      "unread",
+    ]);
   });
 });
 
@@ -127,7 +138,7 @@ describe("getPortalTicketView", () => {
     expect(view).not.toBeNull();
     const keys = Object.keys(view);
     for (const forbidden of ["labels", "assignees", "valueCents"]) expect(keys).not.toContain(forbidden);
-    expect(Object.keys(view.ticket).sort()).toEqual(["closedAt", "createdAt", "id", "number", "status", "title"]);
+    expect(Object.keys(view.ticket).sort()).toEqual(["closedAt", "createdAt", "id", "isProject", "number", "status", "title"]);
     expect(view.siteName).toBe("alpha.com");
     expect(view.messages.length).toBe(4);
     expect(view.messages.every((m) => m.changedBy === null)).toBe(true);
@@ -137,17 +148,42 @@ describe("getPortalTicketView", () => {
   });
 });
 
-describe("whose turn", () => {
-  it("is the agency's until the team replies, then the client's; closed is done", async () => {
+describe("unread messages", () => {
+  const unreadOf = async (session: PortalSession, id: string) =>
+    (await listPortalTickets(session, db)).find((r) => r.id === id)!.unread;
+
+  it("counts the team's messages until the person opens the ticket; their own never count", async () => {
     const id = await open(A, "Needs help");
-    expect((await listPortalTickets(asPortal(A), db))[0].turn).toBe("agency");
+    expect(await unreadOf(asPortal(A), id)).toBe(0);
     await postMessage(team, id, { bodyHtml: "<p>On it</p>" }, { db });
-    expect((await listPortalTickets(asPortal(A), db))[0].turn).toBe("client");
-    expect((await getPortalTicketView(asPortal(A), id, "en", db))!.turn).toBe("client");
-    await db.update(tickets).set({ status: "closed", closedAt: new Date() }).where(eq(tickets.id, id));
+    await postMessage(team, id, { bodyHtml: "<p>Done, please check</p>" }, { db });
+    expect(await unreadOf(asPortal(A), id)).toBe(2);
+    expect(await portalTicketUnread(asPortal(A), id, db)).toBe(2);
+
     const view = (await getPortalTicketView(asPortal(A), id, "en", db))!;
-    expect(view.turn).toBe("done");
-    expect(view.ticket.closedAt).not.toBeNull();
+    expect(await markPortalTicketRead(asPortal(A), id, new Date(view.renderedAt), db)).toEqual({ ok: true, value: undefined });
+    expect(await unreadOf(asPortal(A), id)).toBe(0);
+  });
+
+  it("counts a colleague's messages, and a read mark is per person", async () => {
+    const id = await open(A, "Shared");
+    const [colleague] = await db.insert(clientUsers).values({ name: "Bo", email: "bo@x.com", passwordHash: "x" }).returning();
+    await db.insert(clientMemberships).values({ clientUserId: colleague.id, clientId: A.id, role: "collaborator" });
+    const asColleague: PortalSession = { userType: "client", user: colleague, client: A, role: "collaborator" };
+    await postMessage(asColleague, id, { bodyHtml: "<p>Any news?</p>" }, { db });
+    expect(await unreadOf(asPortal(A), id)).toBe(1);
+    expect(await unreadOf(asColleague, id)).toBe(0);
+    await markPortalTicketRead(asPortal(A), id, undefined, db);
+    expect(await unreadOf(asPortal(A), id)).toBe(0);
+  });
+
+  it("refuses to mark a ticket of another company", async () => {
+    const [{ id }] = await db
+      .insert(tickets)
+      .values({ number: 99, clientId: B.id, type: "single", title: "Other", createdByType: "agency", createdById: teamUser.id })
+      .returning({ id: tickets.id });
+    expect(await markPortalTicketRead(asPortal(A), id, undefined, db)).toEqual({ ok: false, error: "notFound" });
+    expect(await portalTicketUnread(asPortal(A), id, db)).toBe(0);
   });
 });
 
@@ -245,7 +281,7 @@ describe("getPortalTicketView time", () => {
     expect(view.timeLoggedMinutes).toBe(75);
     const json = JSON.stringify(view);
     for (const leak of ["private note", "another note", "2026-11-10", teamUser.id, "workedOn", "createdById"]) expect(json).not.toContain(leak);
-    expect(Object.keys(view).sort()).toEqual(["charge", "files", "messages", "siteName", "ticket", "timeLoggedMinutes", "turn"]);
+    expect(Object.keys(view).sort()).toEqual(["charge", "files", "messages", "renderedAt", "siteName", "ticket", "timeLoggedMinutes"]);
   });
 
   it("has no time total while the client does not see hours", async () => {

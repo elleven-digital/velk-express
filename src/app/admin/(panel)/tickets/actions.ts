@@ -12,7 +12,7 @@ import { getUserDict } from "@/lib/i18n/server";
 import type { TicketFormState } from "@/components/ticket-form-state";
 
 /** Text fields the new-ticket form sends back with an error (the first message and the files stay in the page). */
-const TICKET_KEYS = ["title", "clientId", "siteId", "type", "value"] as const;
+const TICKET_KEYS = ["title", "clientId", "siteId", "type", "value", "isProject"] as const;
 
 const text = (formData: FormData, key: string) => String(formData.get(key) ?? "");
 
@@ -41,6 +41,7 @@ export async function createTicketAction(_prev: TicketFormState, formData: FormD
     title: text(formData, "title"),
     bodyHtml: text(formData, "body"),
     valueCents,
+    isProject: formData.get("isProject") === "on",
     attachmentIds: parseFileIds(text(formData, "attachmentIds")),
   });
   if (!res.ok) return fail(res.error);

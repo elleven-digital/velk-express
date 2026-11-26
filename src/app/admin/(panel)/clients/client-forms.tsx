@@ -121,71 +121,74 @@ export function SupportForm({
   const on = (key: "hoursTracked" | "hoursVisible" | "hoursLimited" | "hoursPurchasable", saved: boolean) =>
     v ? v[key] === "on" : saved;
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="group/support space-y-5">
       <input type="hidden" name="clientId" value={clientId} />
       <Checkbox name="supportActive" defaultChecked={v ? v.supportActive === "on" : support.active} label={labels.supportToggle} hint={supportToggleHint} />
-      <Field label={`${fmt(labels.monthlyValue, { currency })} (${labels.optional})`} htmlFor="s-monthly">
-        <Input id="s-monthly" name="monthly" inputMode="decimal" defaultValue={v?.monthly ?? monthlyValue} placeholder={placeholder} className="max-w-48" />
-      </Field>
-      {/* each option shows only while the one it depends on is ticked: CSS, so no client code */}
-      <fieldset className="group/hours space-y-2.5">
-        <legend className="mb-2.5 text-[0.875rem] font-medium text-ink">{labels.hoursMode}</legend>
-        <Checkbox name="hoursTracked" defaultChecked={on("hoursTracked", support.hours.tracked)} label={labels.hoursTrack} hint={labels.hoursTrackHint} />
-        <div className="hidden space-y-2.5 pl-7 group-has-[[name=hoursTracked]:checked]/hours:block">
-          <Checkbox name="hoursVisible" defaultChecked={on("hoursVisible", support.hours.visible)} label={labels.hoursVisible} hint={labels.hoursVisibleHint} />
-          <div className="group/limit space-y-2.5">
-            <Checkbox name="hoursLimited" defaultChecked={on("hoursLimited", support.hours.limited)} label={labels.hoursLimit} hint={labels.hoursLimitHint} />
-            <div className="hidden space-y-4 pl-7 pt-1.5 group-has-[[name=hoursLimited]:checked]/limit:block">
-              <Field label={labels.includedHours} htmlFor="s-included">
-                <Input
-                  id="s-included"
-                  name="includedHours"
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="any"
-                  defaultValue={v?.includedHours ?? hours.included}
-                  className="max-w-48"
-                />
-              </Field>
-              <Field
-                label={`${fmt(labels.extraHourValue, { currency })} (${labels.optional})`}
-                htmlFor="s-extra"
-                hint={labels.extraHourHint}
-              >
-                <Input id="s-extra" name="extraHourValue" inputMode="decimal" defaultValue={v?.extraHourValue ?? hours.extraValue} placeholder={placeholder} className="max-w-48" />
-              </Field>
-              <div className="hidden group-has-[[name=hoursVisible]:checked]/hours:block">
-                <Checkbox
-                  name="hoursPurchasable"
-                  defaultChecked={on("hoursPurchasable", support.hours.purchasable)}
-                  label={labels.hoursPurchasable}
-                  hint={labels.hoursPurchasableHint}
-                />
+      {/* the plan's fields only while the plan is on: CSS, so no client code (the server ignores them when it is off) */}
+      <div className="hidden space-y-5 group-has-[[name=supportActive]:checked]/support:block">
+        <Field label={`${fmt(labels.monthlyValue, { currency })} (${labels.optional})`} htmlFor="s-monthly">
+          <Input id="s-monthly" name="monthly" inputMode="decimal" defaultValue={v?.monthly ?? monthlyValue} placeholder={placeholder} className="max-w-48" />
+        </Field>
+        {/* each option shows only while the one it depends on is ticked: CSS, so no client code */}
+        <fieldset className="group/hours space-y-2.5">
+          <legend className="mb-2.5 text-[0.875rem] font-medium text-ink">{labels.hoursMode}</legend>
+          <Checkbox name="hoursTracked" defaultChecked={on("hoursTracked", support.hours.tracked)} label={labels.hoursTrack} hint={labels.hoursTrackHint} />
+          <div className="hidden space-y-2.5 pl-7 group-has-[[name=hoursTracked]:checked]/hours:block">
+            <Checkbox name="hoursVisible" defaultChecked={on("hoursVisible", support.hours.visible)} label={labels.hoursVisible} hint={labels.hoursVisibleHint} />
+            <div className="group/limit space-y-2.5">
+              <Checkbox name="hoursLimited" defaultChecked={on("hoursLimited", support.hours.limited)} label={labels.hoursLimit} hint={labels.hoursLimitHint} />
+              <div className="hidden space-y-4 pl-7 pt-1.5 group-has-[[name=hoursLimited]:checked]/limit:block">
+                <Field label={labels.includedHours} htmlFor="s-included">
+                  <Input
+                    id="s-included"
+                    name="includedHours"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="any"
+                    defaultValue={v?.includedHours ?? hours.included}
+                    className="max-w-48"
+                  />
+                </Field>
+                <Field
+                  label={`${fmt(labels.extraHourValue, { currency })} (${labels.optional})`}
+                  htmlFor="s-extra"
+                  hint={labels.extraHourHint}
+                >
+                  <Input id="s-extra" name="extraHourValue" inputMode="decimal" defaultValue={v?.extraHourValue ?? hours.extraValue} placeholder={placeholder} className="max-w-48" />
+                </Field>
+                <div className="hidden group-has-[[name=hoursVisible]:checked]/hours:block">
+                  <Checkbox
+                    name="hoursPurchasable"
+                    defaultChecked={on("hoursPurchasable", support.hours.purchasable)}
+                    label={labels.hoursPurchasable}
+                    hint={labels.hoursPurchasableHint}
+                  />
+                </div>
               </div>
             </div>
           </div>
+        </fieldset>
+        <Checkbox name="generalTickets" defaultChecked={v ? v.generalTickets === "on" : support.generalTickets} label={labels.generalToggle} hint={labels.generalHint} />
+        <div>
+          <div className="mb-2.5 text-[0.875rem] font-medium text-ink">{labels.sitesInSupport}</div>
+          {sites.length === 0 ? (
+            <p className="text-muted">{labels.noSitesYet}</p>
+          ) : (
+            <div className="space-y-2.5">
+              {sites.map((site) => (
+                <Checkbox
+                  key={site.id}
+                  name="siteIds"
+                  value={site.id}
+                  defaultChecked={v ? ticked.has(site.id) : site.includedInSupport}
+                  label={site.name}
+                  hint={site.url ?? undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </fieldset>
-      <Checkbox name="generalTickets" defaultChecked={v ? v.generalTickets === "on" : support.generalTickets} label={labels.generalToggle} hint={labels.generalHint} />
-      <div>
-        <div className="mb-2.5 text-[0.875rem] font-medium text-ink">{labels.sitesInSupport}</div>
-        {sites.length === 0 ? (
-          <p className="text-muted">{labels.noSitesYet}</p>
-        ) : (
-          <div className="space-y-2.5">
-            {sites.map((site) => (
-              <Checkbox
-                key={site.id}
-                name="siteIds"
-                value={site.id}
-                defaultChecked={v ? ticked.has(site.id) : site.includedInSupport}
-                label={site.name}
-                hint={site.url ?? undefined}
-              />
-            ))}
-          </div>
-        )}
       </div>
       <Notice state={state} />
       <div className="flex justify-end">

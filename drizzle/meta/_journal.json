@@ -64,6 +64,20 @@
       "when": 1795626924061,
       "tag": "0008_hours_options",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795700535240,
+      "tag": "0009_ticket_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795701593004,
+      "tag": "0010_client_ticket_reads",
+      "breakpoints": true
     }
   ]
 }

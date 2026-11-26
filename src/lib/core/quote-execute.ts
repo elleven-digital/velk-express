@@ -145,6 +145,8 @@ async function run(db: Db, actor: TeamSession, quoteId: string, itemIds: string[
         type: "single",
         title: item.title,
         valueCents: item.amountCents > 0 ? item.amountCents : null,
+        // Building a site is a project for the client; a job on an existing one is a ticket.
+        isProject: item.kind === "site_creation",
         quoteItemId: item.id,
         createdBy: { type: "agency", id: actor.user.id },
       });

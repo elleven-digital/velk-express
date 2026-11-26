@@ -78,12 +78,9 @@ export default async function ClientsPage() {
                         {t.clients.perMonth}
                       </>
                     ) : null}
-                    {client.supportActive && client.hoursTracked && !client.hoursLimited ? <> · {t.clients.hoursTrackedShort}</> : null}
                   </div>
                 </div>
-                <Badge tone={client.supportActive ? "ok" : "muted"}>
-                  {client.supportActive ? t.clients.supportActive : t.clients.supportInactive}
-                </Badge>
+                {client.supportActive ? <Badge tone="ok">{t.clients.supportActive}</Badge> : null}
               </Link>
             ))}
           </Card>
@@ -118,17 +115,13 @@ export default async function ClientsPage() {
                     </td>
                     <td className={cn(tdClasses, "tabular text-ink")}>{client.siteCount}</td>
                     <td className={cn(tdClasses, "whitespace-nowrap")}>
-                      <Badge tone={client.supportActive ? "ok" : "muted"}>
-                        {client.supportActive ? t.clients.supportActive : t.clients.supportInactive}
-                      </Badge>
+                      {/* only clients with support say anything here; the others leave the cell empty */}
+                      {client.supportActive ? <Badge tone="ok">{t.clients.supportActive}</Badge> : null}
                       {client.supportActive && client.hoursLimited ? (
                         <span className="ml-2 text-[0.8125rem] text-muted">
                           {formatMinutes(client.includedMinutes)}
                           {t.clients.perMonth}
                         </span>
-                      ) : null}
-                      {client.supportActive && client.hoursTracked && !client.hoursLimited ? (
-                        <span className="ml-2 text-[0.8125rem] text-muted">{t.clients.hoursTrackedShort}</span>
                       ) : null}
                     </td>
                   </tr>

@@ -66,7 +66,7 @@ export type TeamTicketView = {
  * The database's clock, as ISO with milliseconds, rounded up to the next millisecond so a message
  * written in the same millisecond that was read still counts as seen (Postgres keeps microseconds).
  */
-async function databaseNow(db: Db): Promise<string> {
+export async function databaseNow(db: Db): Promise<string> {
   const [row] = await db.execute<{ now: string }>(
     sql`select to_char(clock_timestamp() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as now`,
   );

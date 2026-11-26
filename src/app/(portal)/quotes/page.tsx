@@ -48,7 +48,7 @@ export default async function PortalQuotesPage({ searchParams }: { searchParams:
             return (
               <ProposalRow
                 key={q.id}
-                href={`/q/${q.token}`}
+                href={`/quotes/${q.token}`}
                 title={q.title}
                 status={{ tone: q.status === "sent" ? "warn" : meta.tone, label: t.quotes.status[meta.key] }}
                 meta={[

@@ -36,6 +36,7 @@ import {
   removeFileAction,
   removeLabelAction,
   sendMessageAction,
+  toggleProjectAction,
   toggleStatusAction,
 } from "./actions";
 
@@ -86,6 +87,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
             <Badge tone={status.tone}>{status.label}</Badge>
             <span className="tabular">#{ticket.number}</span>
             {ticket.type === "support" ? t.tickets.typeSupport : t.tickets.typeSingle}
+            {ticket.isProject ? <Badge tone="lav">{t.tickets.projectBadge}</Badge> : null}
             <Link href={`/admin/clients/${client.id}`} className="hover:text-ink hover:underline underline-offset-[3px]">
               {client.name}
             </Link>
@@ -260,6 +262,18 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
                     <ProgressBar value={hours.usedMinutes} max={hours.totalMinutes} tone={hours.balanceMinutes < 0 ? "danger" : "brand"} />
                   </>
                 )}
+              </section>
+            ) : null}
+
+            {staff ? (
+              <section className="p-4" aria-labelledby="d-project">
+                <h3 id="d-project" className={detailHead}>
+                  {t.tickets.projectHead}
+                </h3>
+                <p className="mb-3 text-[0.8125rem] text-muted">{ticket.isProject ? t.tickets.projectOn : t.tickets.projectOff}</p>
+                <ControlButton action={toggleProjectAction.bind(null, ticket.id)}>
+                  {ticket.isProject ? t.tickets.projectUnmark : t.tickets.projectMark}
+                </ControlButton>
               </section>
             ) : null}
 

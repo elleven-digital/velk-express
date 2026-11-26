@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { resetTestDb } from "@/test/db";
 import { agency, clients, quoteItems, quotes, users, type Db, type Quote, type QuoteStatus } from "@/lib/db";
 import type { MailMessage, sendMail } from "@/lib/mail/send";
-import { approveQuote, getPublicQuote } from "./quote-public";
+import { approveQuote, getPublicQuote, isQuoteForClient } from "./quote-public";
 
 /** Collects what approveQuote schedules, so a test can run it when it wants. */
 let scheduled: (() => Promise<void>)[];
@@ -118,6 +118,21 @@ describe("getPublicQuote", () => {
     const [client] = await db.insert(clients).values({ name: "Casa Verde" }).returning();
     const { quote } = await makeQuote("sent", { clientId: client.id, prospectName: null, prospectEmail: null });
     expect((await getPublicQuote(quote.token, { db }))!.forName).toBe("Casa Verde");
+  });
+});
+
+describe("isQuoteForClient", () => {
+  it("is true only for the client's own quote, while it is visible", async () => {
+    const [client] = await db.insert(clients).values({ name: "Casa Verde" }).returning();
+    const [other] = await db.insert(clients).values({ name: "Other" }).returning();
+    const { quote } = await makeQuote("sent", { clientId: client.id, prospectName: null, prospectEmail: null });
+    const { quote: prospect } = await makeQuote("sent");
+    const { quote: draft } = await makeQuote("draft", { clientId: client.id, prospectName: null, prospectEmail: null });
+    expect(await isQuoteForClient(quote.token, client.id, { db })).toBe(true);
+    expect(await isQuoteForClient(quote.token, other.id, { db })).toBe(false);
+    expect(await isQuoteForClient(prospect.token, client.id, { db })).toBe(false);
+    expect(await isQuoteForClient(draft.token, client.id, { db })).toBe(false);
+    expect(await isQuoteForClient("nope", client.id, { db })).toBe(false);
   });
 });
 

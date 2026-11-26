@@ -243,3 +243,17 @@ export async function notifyOwners(
     }
   }
 }
+
+/**
+ * Whether the quote behind a link is for this client (not a prospect's, not a draft or archived).
+ * Kept apart from the public view so that never carries the client's id.
+ */
+export async function isQuoteForClient(token: string, clientId: string, deps: Deps = {}): Promise<boolean> {
+  if (typeof token !== "string" || !token || token.length > TOKEN_MAX) return false;
+  const db = deps.db ?? appDb;
+  const [row] = await db
+    .select({ clientId: quotes.clientId, status: quotes.status })
+    .from(quotes)
+    .where(eq(quotes.token, token));
+  return Boolean(row && row.clientId === clientId && row.status !== "draft" && row.status !== "archived");
+}

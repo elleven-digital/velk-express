@@ -3,7 +3,6 @@ import { requirePortal } from "@/lib/auth/guards";
 import { listPortalTickets, portalNewTicketOptions, type PortalTicketRow } from "@/lib/core/portal-tickets";
 import { fmt } from "@/lib/i18n";
 import { getPortalDict } from "@/lib/i18n/server";
-import { turnBadge } from "@/lib/turn";
 import { Icon } from "@/components/icons";
 import { LocalTime } from "@/components/local-time";
 import { Callout, Card, EmptyState, LinkButton, PageHeader, SectionHead } from "@/components/ui";
@@ -11,11 +10,11 @@ import { PortalTicketRow as Row, WorkList } from "@/components/work-list";
 
 export const dynamic = "force-dynamic";
 
-/** The active company's tickets: the open ones first, the concluded ones under them. */
+/** The active company's tickets (projects have their own page): the open ones first, the concluded ones under them. */
 export default async function PortalTicketsPage() {
   const session = await requirePortal();
   const [rows, options, { t, locale }, agency] = await Promise.all([
-    listPortalTickets(session),
+    listPortalTickets(session, undefined, { kind: "tickets" }),
     portalNewTicketOptions(session),
     getPortalDict(),
     getAgency(),
@@ -32,7 +31,8 @@ export default async function PortalTicketsPage() {
       number={r.number}
       site={r.siteName ?? t.tickets.generalLabel}
       when={<LocalTime iso={r.lastActivity.toISOString()} locale={locale} />}
-      status={turnBadge(r.turn, "client", t)}
+      unread={{ n: r.unread, label: r.unread === 1 ? t.tickets.unreadOne : fmt(t.tickets.unreadMany, { n: r.unread }) }}
+      closed={r.status === "closed" ? t.tickets.statusClosed : undefined}
     />
   );
 
