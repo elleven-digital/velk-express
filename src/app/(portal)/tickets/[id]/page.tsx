@@ -14,7 +14,7 @@ import { Icon } from "@/components/icons";
 import { LocalTime } from "@/components/local-time";
 import { MarkRead } from "@/components/mark-read";
 import { StickyFill } from "@/components/sticky-fill";
-import { Badge, buttonClasses, PageHeader } from "@/components/ui";
+import { Badge, buttonClasses, Card, PageHeader } from "@/components/ui";
 import { attachFilesAction, deleteMessageAction, editMessageAction, markReadAction, removeFileAction, sendMessageAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -75,51 +75,50 @@ export default async function PortalTicketPage({ params }: { params: Promise<{ i
         }
       />
 
-      {/* the ticket's files, folded so the conversation stays in view */}
-      <details className="group mb-5 rounded-lg border border-line bg-white">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-medium text-ink [&::-webkit-details-marker]:hidden">
-          <Icon name="paperclip" className="text-muted" />
-          {t.files.title}
-          <span className="text-muted font-normal tabular">{view.files.length}</span>
-          <Icon name="chevron" size={14} className="ml-auto text-muted transition-transform group-open:rotate-180" />
-        </summary>
-        <TicketFiles
-          className="border-t border-line px-4 pt-3 pb-4"
-          files={view.files}
-          side="portal"
-          locale={locale}
-          disabled={closed}
-          attachAction={attachFilesAction.bind(null, ticket.id)}
-          removeAction={removeFileAction.bind(null, ticket.id)}
-          labels={fileLabels}
-        />
-      </details>
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_280px] gap-8 items-start">
+        {/* desktop: the conversation sticks under the portal's 56px bar while the page scrolls */}
+        <StickyFill
+          top={80}
+          mobileBottom={84}
+          className="min-w-0 flex flex-col max-h-[calc(100dvh-22rem)] lg:sticky lg:top-20 lg:max-h-[calc(100dvh-16rem)]"
+        >
+          <ChatThread
+            messages={view.messages}
+            side="client"
+            editorSide="portal"
+            locale={locale}
+            heightClass=""
+            sendAction={sendMessageAction.bind(null, ticket.id)}
+            editAction={editMessageAction.bind(null, ticket.id)}
+            deleteAction={deleteMessageAction.bind(null, ticket.id)}
+            labels={chatLabelsOf(t, agency?.name ?? t.chat.team)}
+            closedNotice={
+              !closed
+                ? null
+                : ticket.closedAt
+                  ? fillNode(t.tickets.closedAt, { date: <LocalTime iso={ticket.closedAt.toISOString()} locale={locale} /> })
+                  : t.tickets.statusClosed
+            }
+          />
+        </StickyFill>
 
-      {/* desktop: the conversation sticks under the portal's 56px bar while the page scrolls */}
-      <StickyFill
-        top={80}
-        mobileBottom={84}
-        className="min-w-0 flex flex-col max-h-[calc(100dvh-22rem)] lg:sticky lg:top-20 lg:max-h-[calc(100dvh-16rem)]"
-      >
-        <ChatThread
-          messages={view.messages}
-          side="client"
-          editorSide="portal"
-          locale={locale}
-          heightClass=""
-          sendAction={sendMessageAction.bind(null, ticket.id)}
-          editAction={editMessageAction.bind(null, ticket.id)}
-          deleteAction={deleteMessageAction.bind(null, ticket.id)}
-          labels={chatLabelsOf(t, agency?.name ?? t.chat.team)}
-          closedNotice={
-            !closed
-              ? null
-              : ticket.closedAt
-                ? fillNode(t.tickets.closedAt, { date: <LocalTime iso={ticket.closedAt.toISOString()} locale={locale} /> })
-                : t.tickets.statusClosed
-          }
-        />
-      </StickyFill>
+        {/* the ticket's files in a side column, as on the team's page */}
+        <Card className="p-4" aria-labelledby="t-files">
+          <h2 id="t-files" className="text-[0.8125rem] font-medium text-muted mb-2.5">
+            {t.files.title}
+            {view.files.length > 0 ? <span className="tabular"> · {view.files.length}</span> : null}
+          </h2>
+          <TicketFiles
+            files={view.files}
+            side="portal"
+            locale={locale}
+            disabled={closed}
+            attachAction={attachFilesAction.bind(null, ticket.id)}
+            removeAction={removeFileAction.bind(null, ticket.id)}
+            labels={fileLabels}
+          />
+        </Card>
+      </div>
     </div>
   );
 }
