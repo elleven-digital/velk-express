@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const { t } = await getPublicDict();
+  const { t, locale } = await getPublicDict();
   const agency = await getAgency();
   const brand = { name: agency?.name ?? "Velk Express", logoUrl: logoPath(agency?.logoFileId ?? null) };
 
@@ -23,6 +23,8 @@ export default async function SetPasswordPage({ params }: { params: Promise<{ to
     const portal = (await tokenUserType(token)) === "client";
     return (
       <AuthShell
+
+        language={{ value: locale, label: t.ui.language }}
         title={t.auth.invalidLinkTitle}
         sub={t.auth.invalidLink}
         agency={brand}
@@ -39,6 +41,8 @@ export default async function SetPasswordPage({ params }: { params: Promise<{ to
   const areaLabel = owner.userType === "client" ? t.auth.portalAreaLabel : t.auth.areaLabel;
   return (
     <AuthShell
+
+      language={{ value: locale, label: t.ui.language }}
       title={invite ? t.auth.setPasswordTitle : t.auth.resetTitle}
       sub={invite ? t.auth.setPasswordSub : t.auth.resetSub}
       agency={brand}

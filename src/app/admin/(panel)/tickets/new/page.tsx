@@ -14,7 +14,7 @@ import { createTicketAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewTicketPage({ searchParams }: { searchParams: Promise<{ client?: string | string[] }> }) {
+export default async function NewTicketPage({ searchParams }: { searchParams: Promise<{ client?: string | string[]; project?: string | string[] }> }) {
   const me = await requireTeam();
   const [{ t, locale }, agency, sp] = await Promise.all([getUserDict(), getAgency(), searchParams]);
   // Only the clients this member may see; their sites in one query.
@@ -27,10 +27,12 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
         .orderBy(asc(sites.name), asc(sites.id))
     : [];
   const initialClientId = Array.isArray(sp.client) ? sp.client[0] : sp.client;
+  // From the projects list: a project (only owners and managers mark one).
+  const project = isStaff(me.user) && (Array.isArray(sp.project) ? sp.project[0] : sp.project) === "1";
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title={t.tickets.new} />
+      <PageHeader title={project ? t.tickets.newProject : t.tickets.new} />
       {clientList.length === 0 ? (
         <Card>
           <EmptyState
@@ -49,6 +51,7 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
             clients={clientList.map((c) => ({ id: c.id, name: c.name, supportActive: c.supportActive }))}
             sites={siteList}
             initialClientId={initialClientId}
+            initialProject={project}
             canSetValue={isStaff(me.user)}
             labels={{
               placeholder: t.chat.placeholder,
@@ -88,7 +91,7 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
         </Card>
       )}
       <p className="mt-4">
-        <Link href="/admin/tickets" className="text-muted hover:text-ink underline-offset-[3px] hover:underline">
+        <Link href={project ? "/admin/projects" : "/admin/tickets"} className="text-muted hover:text-ink underline-offset-[3px] hover:underline">
           {t.common.back}
         </Link>
       </p>

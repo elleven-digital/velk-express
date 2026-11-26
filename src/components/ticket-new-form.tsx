@@ -73,6 +73,7 @@ export function TicketNewForm({
   sites,
   labels,
   initialClientId,
+  initialProject = false,
   canSetValue,
 }: {
   action: (prev: TicketFormState, formData: FormData) => Promise<TicketFormState>;
@@ -80,6 +81,8 @@ export function TicketNewForm({
   sites: SiteOption[];
   labels: TicketFormLabels;
   initialClientId?: string;
+  /** The project box starts ticked (opened from the projects list). */
+  initialProject?: boolean;
   /** Only owners and managers set the agreed value. */
   canSetValue: boolean;
 }) {
@@ -151,7 +154,7 @@ export function TicketNewForm({
       {canSetValue ? (
         <Checkbox
           name="isProject"
-          defaultChecked={values?.isProject === "on"}
+          defaultChecked={values ? values.isProject === "on" : initialProject}
           label={labels.projectToggle}
           hint={labels.projectHint}
         />

@@ -12,16 +12,17 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalLoginPage() {
   if (await getPortalSession()) redirect("/");
-  const { t } = await getPublicDict();
+  const { t, locale } = await getPublicDict();
   const agency = await getAgency();
   const name = agency?.name ?? "Velk Express";
 
   return (
     <AuthShell
-      title={t.auth.loginTitle}
+
+      language={{ value: locale, label: t.ui.language }}
+      title={t.auth.portalAreaLabel}
       sub={fmt(t.auth.portalLoginSub, { agency: name })}
       agency={{ name, logoUrl: logoPath(agency?.logoFileId ?? null) }}
-      areaLabel={t.auth.portalAreaLabel}
       footer={
         <Link href="/admin/login" className="font-medium text-ink hover:underline underline-offset-[3px]">
           {t.auth.teamLoginLink}

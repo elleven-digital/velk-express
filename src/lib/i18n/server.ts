@@ -22,18 +22,28 @@ export function localeFromAcceptLanguage(header: string | null): Locale | null {
   return null;
 }
 
+/** The agency's language, or null before the install or when the database can't be reached. */
+async function agencyLocale(): Promise<Locale | null> {
+  try {
+    const agency = await getAgency();
+    return isLocale(agency?.locale) ? agency.locale : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Locale for logged-out surfaces: cookie → Accept-Language → `fallback` (default: en). A page the
- * agency sends out (a quote link) passes the agency's own language as the fallback.
+ * Locale for logged-out surfaces: cookie (the person's own choice, or a page's language picker) →
+ * Accept-Language → `fallback` → the agency's language → en.
  */
-export async function getPublicLocale(fallback: Locale = DEFAULT_LOCALE): Promise<Locale> {
+export async function getPublicLocale(fallback?: Locale): Promise<Locale> {
   const fromCookie = (await cookies()).get(LOCALE_COOKIE)?.value;
   if (isLocale(fromCookie)) return fromCookie;
   const accept = (await headers()).get("accept-language");
-  return localeFromAcceptLanguage(accept) ?? fallback;
+  return localeFromAcceptLanguage(accept) ?? fallback ?? (await agencyLocale()) ?? DEFAULT_LOCALE;
 }
 
-export async function getPublicDict(fallback: Locale = DEFAULT_LOCALE): Promise<{ t: Dict; locale: Locale }> {
+export async function getPublicDict(fallback?: Locale): Promise<{ t: Dict; locale: Locale }> {
   const locale = await getPublicLocale(fallback);
   return { t: await getDict(locale), locale };
 }

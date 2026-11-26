@@ -212,6 +212,7 @@ export function PageHeader({
   meta,
   actions,
   crumb,
+  actionsBeside = false,
 }: {
   title: ReactNode;
   sub?: ReactNode;
@@ -219,8 +220,25 @@ export function PageHeader({
   meta?: ReactNode;
   actions?: ReactNode;
   crumb?: string | null;
+  /** The actions on the title's own line, with the facts running the full width under both. */
+  actionsBeside?: boolean;
 }) {
   const crumbLabel = crumb === undefined ? (typeof title === "string" ? title : null) : crumb;
+  if (actionsBeside) {
+    return (
+      <header className="mb-8 max-sm:mb-6">
+        {crumbLabel ? <PageCrumb label={crumbLabel} /> : null}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <h1 className="min-w-0 text-[1.5rem] sm:text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.025em] text-ink">{title}</h1>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:*:flex-1 max-sm:[&_:is(a,button)]:w-full">{actions}</div>
+          ) : null}
+        </div>
+        {sub ? <p className="text-muted text-[0.875rem] mt-1.5 max-w-[62ch]">{sub}</p> : null}
+        {meta ? <MetaLine className="mt-2.5">{meta}</MetaLine> : null}
+      </header>
+    );
+  }
   return (
     <header className="flex flex-wrap items-start justify-between gap-4 mb-8 max-sm:mb-6">
       {crumbLabel ? <PageCrumb label={crumbLabel} /> : null}

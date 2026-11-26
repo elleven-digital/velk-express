@@ -350,7 +350,7 @@ export function Menu({
 
 /**
  * The panel frame: a sidebar on wide screens (agency, sections, the signed-in
- * user with a log-out link under the name), a top bar with the breadcrumb, and a bottom tab bar on
+ * user with a log-out link under the name), a top bar with the breadcrumb (optional on wide screens), and a bottom tab bar on
  * phones. Pages render inside as children and may name themselves with
  * <PageCrumb> (PageHeader does it).
  */
@@ -360,20 +360,28 @@ export function ShellNav({
   items,
   signOutAction,
   labels,
+  accountExtra,
+  crumbBar = true,
   children,
 }: {
-  agency: { name: string; logoUrl?: string | null };
-  user: { name: string };
+  /** `area` names the side under the agency in the sidebar (the client portal says it's the client's area). */
+  agency: { name: string; logoUrl?: string | null; area?: string };
+  /** The signed-in person; `kind` picks the avatar style (the client portal's people are "client"). */
+  user: { name: string; kind?: "team" | "client" };
   items: NavItem[];
   /** A server action (or any form action) that ends the session. */
   signOutAction: () => void | Promise<void>;
   labels: { navigation: string; more: string; close: string; signOut: string };
+  /** More of the account under the name: the client portal puts the company (and its switcher) here. */
+  accountExtra?: ReactNode;
+  /** The top bar with the breadcrumb on wide screens; without it the bar shows on phones only (the agency's name). */
+  crumbBar?: boolean;
   children: ReactNode;
 }) {
   const account = (
     <div className="px-2 py-2">
       <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={user.name} size={32} />
+        <Avatar name={user.name} kind={user.kind} size={32} />
         <div className="min-w-0 leading-tight">
           <div className="truncate text-[0.875rem] font-medium text-ink">{user.name}</div>
           <form action={signOutAction}>
@@ -386,6 +394,7 @@ export function ShellNav({
           </form>
         </div>
       </div>
+      {accountExtra ? <div className="mt-2.5">{accountExtra}</div> : null}
     </div>
   );
 
@@ -393,16 +402,25 @@ export function ShellNav({
     <CrumbProvider>
       <div className="min-h-screen lg:flex">
         <aside className="max-lg:hidden w-60 flex-none sticky top-0 h-screen flex flex-col border-r border-line bg-white p-3">
-          <div className="flex items-center gap-2.5 h-9 px-2 mb-3 min-w-0">
-            <AgencyAvatar name={agency.name} logoUrl={agency.logoUrl} size={24} />
-            <span className="truncate font-medium text-ink">{agency.name}</span>
+          <div className={cn("flex items-center gap-2.5 px-2 mb-3 min-w-0", agency.area ? "py-1" : "h-9")}>
+            <AgencyAvatar name={agency.name} logoUrl={agency.logoUrl} size={agency.area ? 32 : 24} />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate font-medium text-ink">{agency.name}</div>
+              {agency.area ? <div className="truncate text-[0.8125rem] text-muted">{agency.area}</div> : null}
+            </div>
           </div>
           <SideNav items={items} label={labels.navigation} />
           <div className="mt-auto border-t border-line pt-2">{account}</div>
         </aside>
 
-        <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-          <header className="h-14 flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6">
+        {/* a page marked data-bleed (a ticket's conversation) has no top bar on wide screens: its box runs the window's height */}
+        <div className="group/shell flex-1 min-w-0 flex flex-col min-h-screen">
+          <header
+            className={cn(
+              "h-14 flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6 lg:group-has-[[data-bleed]]/shell:hidden",
+              !crumbBar && "lg:hidden",
+            )}
+          >
             <span className="lg:hidden inline-flex items-center gap-2 min-w-0 font-medium text-ink">
               <AgencyAvatar name={agency.name} logoUrl={agency.logoUrl} size={24} />
               <span className="truncate max-w-[40vw]">{agency.name}</span>
@@ -412,7 +430,10 @@ export function ShellNav({
             </span>
             <TopCrumbs items={items} />
           </header>
-          <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-8 max-sm:py-6">{children}</main>
+          {/* and runs edge to edge beside the sidebar */}
+          <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-8 max-sm:py-6 lg:has-[[data-bleed]]:max-w-none lg:has-[[data-bleed]]:p-0">
+            {children}
+          </main>
           <BottomTabs
             items={items}
             label={labels.navigation}

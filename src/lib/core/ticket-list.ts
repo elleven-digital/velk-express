@@ -36,6 +36,8 @@ export type TicketFilters = {
   unread?: boolean;
   labelId?: string;
   q?: string;
+  /** Projects only, or the tickets that aren't; both when unset. Set by the page, not read from the URL. */
+  kind?: "tickets" | "projects";
 };
 
 /**
@@ -105,6 +107,7 @@ async function listWhere(actor: TeamSession, filters: TicketFilters, db: Db): Pr
   const me = actor.user.id;
   const conditions: (SQL | undefined)[] = [await visibleTicketsWhere(actor, db)];
   if (filters.status) conditions.push(eq(tickets.status, filters.status));
+  if (filters.kind) conditions.push(eq(tickets.isProject, filters.kind === "projects"));
   if (filters.clientId) conditions.push(eq(tickets.clientId, filters.clientId));
   if (filters.who === "mine") {
     conditions.push(

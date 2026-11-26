@@ -27,7 +27,9 @@ function refresh(ticketId: string) {
   revalidatePath("/projects");
   revalidatePath("/");
   revalidatePath(`/admin/tickets/${ticketId}`);
+  revalidatePath(`/admin/projects/${ticketId}`);
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/projects");
 }
 
 async function answer<T>(

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { LoginForm } from "@/components/auth-forms";
@@ -19,16 +20,22 @@ export default async function AdminLoginPage({
   const raw = (await searchParams).next;
   const next = safeReturnPath(typeof raw === "string" ? raw : null);
   if (await getTeamSession()) redirect(next ?? "/admin");
-  const { t } = await getPublicDict();
+  const { t, locale } = await getPublicDict();
   const agency = await getAgency();
   const name = agency?.name ?? "Velk Express";
 
   return (
     <AuthShell
-      title={t.auth.loginTitle}
+
+      language={{ value: locale, label: t.ui.language }}
+      title={t.auth.teamAreaTitle}
       sub={fmt(t.auth.loginSub, { agency: name })}
       agency={{ name, logoUrl: logoPath(agency?.logoFileId ?? null) }}
-      areaLabel={t.auth.areaLabel}
+      footer={
+        <Link href="/login" className="font-medium text-ink hover:underline underline-offset-[3px]">
+          {t.auth.portalLoginLink}
+        </Link>
+      }
     >
       <LoginForm
         action={loginAction}

@@ -25,8 +25,11 @@ import type { MessageActionState } from "@/components/chat";
 
 function refresh(ticketId: string) {
   revalidatePath(`/admin/tickets/${ticketId}`);
+  revalidatePath(`/admin/projects/${ticketId}`);
   revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath(`/projects/${ticketId}`);
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/projects");
 }
 
 /** Runs a core call and shapes its Result for the UI. `values` ride back with an error. */
@@ -161,5 +164,8 @@ export async function markReadAction(ticketId: string, at: string): Promise<void
   if (!actor) return;
   const before = await ticketUnread(actor, ticketId);
   const res = await markTicketRead(actor, ticketId, new Date(at));
-  if (res.ok && before > 0) revalidatePath("/admin/tickets");
+  if (res.ok && before > 0) {
+    revalidatePath("/admin/tickets");
+    revalidatePath("/admin/projects");
+  }
 }

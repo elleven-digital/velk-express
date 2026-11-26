@@ -40,5 +40,6 @@ export async function openTicketAction(_prev: TicketFormState, formData: FormDat
   revalidatePath("/tickets");
   revalidatePath("/");
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/projects");
   redirect(`/tickets/${res.value.ticketId}`);
 }
