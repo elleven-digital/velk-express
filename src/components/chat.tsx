@@ -291,7 +291,7 @@ export function ChatThread({
             // box; the author line says who wrote it.
             return (
               <article key={m.id} className="group">
-                <header className="flex items-center gap-2.5 mb-2">
+                <header className="flex items-center gap-2.5 mb-1">
                   <Avatar name={m.authorName} kind={m.fromAgency ? "team" : "client"} size={28} />
                   {/* the role gives way first (it shrinks far faster than the name), so the name keeps its room */}
                   <span className="min-w-0 font-semibold text-ink truncate">{m.mine ? labels.you : m.authorName}</span>
