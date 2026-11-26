@@ -212,6 +212,9 @@ export function PageHeader({
   meta,
   actions,
   crumb,
+  actionsBeside = false,
+  back,
+  titleAside,
 }: {
   title: ReactNode;
   sub?: ReactNode;
@@ -219,8 +222,45 @@ export function PageHeader({
   meta?: ReactNode;
   actions?: ReactNode;
   crumb?: string | null;
+  /** The actions on the title's own line, with the facts running the full width under both. */
+  actionsBeside?: boolean;
+  /** With `actionsBeside`: a back arrow left of the title, to where the page came from. */
+  back?: { href: string; label: string };
+  /** With `actionsBeside`: something kept right of the title on every width (actions wrap under on phones). */
+  titleAside?: ReactNode;
 }) {
   const crumbLabel = crumb === undefined ? (typeof title === "string" ? title : null) : crumb;
+  if (actionsBeside) {
+    return (
+      // on phones the conversation under it needs the room
+      <header className="mb-6 max-lg:mb-3">
+        {crumbLabel ? <PageCrumb label={crumbLabel} /> : null}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 items-start gap-1.5">
+            {back ? (
+              <Link
+                href={back.href}
+                aria-label={back.label}
+                title={back.label}
+                className="-ml-1.5 mt-px inline-flex size-8 flex-none items-center justify-center rounded-field text-muted transition-colors hover:bg-paper hover:text-ink sm:mt-0.5"
+              >
+                <Icon name="chevron" size={20} className="rotate-90" />
+              </Link>
+            ) : null}
+            <h1 className="min-w-0 flex-1 text-[1.5rem] sm:text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.025em] text-ink">
+              {title}
+            </h1>
+            {titleAside ? <div className="flex-none">{titleAside}</div> : null}
+          </div>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:*:flex-1 max-sm:[&_:is(a,button)]:w-full">{actions}</div>
+          ) : null}
+        </div>
+        {sub ? <p className="text-muted text-[0.875rem] mt-1.5 max-w-[62ch]">{sub}</p> : null}
+        {meta ? <MetaLine className="mt-2.5">{meta}</MetaLine> : null}
+      </header>
+    );
+  }
   return (
     <header className="flex flex-wrap items-start justify-between gap-4 mb-8 max-sm:mb-6">
       {crumbLabel ? <PageCrumb label={crumbLabel} /> : null}

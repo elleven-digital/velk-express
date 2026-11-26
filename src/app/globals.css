@@ -240,3 +240,29 @@ body {
     scroll-behavior: auto;
   }
 }
+
+/*
+ * Safari on iPhone and iPad zooms the page into a field whose text is under 16px when it gets
+ * focus. On touch screens, fields (and the message editor) use 16px; the page can still be zoomed
+ * by hand, which the viewport is never set to forbid.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}
+
+/* panel and portal on a phone: the page itself neither scrolls nor bounces, only the frame's <main> does */
+@media (max-width: 1023.98px) {
+  html:has([data-shell]),
+  html:has([data-shell]) body {
+    overflow: hidden;
+    overscroll-behavior: none;
+    /* what Safari shows above the top bar and behind its own toolbar: white like the bars (the
+       frame's <main> keeps the gray) */
+    background: #fff;
+  }
+}

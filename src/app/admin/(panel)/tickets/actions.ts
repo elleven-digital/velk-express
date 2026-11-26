@@ -46,5 +46,6 @@ export async function createTicketAction(_prev: TicketFormState, formData: FormD
   });
   if (!res.ok) return fail(res.error);
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/projects");
   redirect(`/admin/tickets/${res.value.ticketId}`);
 }

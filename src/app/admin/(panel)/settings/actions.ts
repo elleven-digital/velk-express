@@ -5,7 +5,14 @@ import { z } from "zod";
 import { requireTeam } from "@/lib/auth/guards";
 import { updateAutoAssign, updateCollabVisibility } from "@/lib/core/assignments";
 import { createLabel, deleteLabel, updateLabel } from "@/lib/core/labels";
-import { CURRENCIES, removeAgencyLogo, setAgencyLogo, updateAgency, updateDefaultPaymentProvider } from "@/lib/core/settings";
+import {
+  CURRENCIES,
+  removeAgencyLogo,
+  setAgencyLogo,
+  updateAgency,
+  updateDefaultPaymentProvider,
+  updateSupportContact,
+} from "@/lib/core/settings";
 import { formValues, type FormValues } from "@/lib/form-values";
 import { setAppUrl } from "@/lib/instance";
 import { LOCALES } from "@/lib/i18n";
@@ -47,6 +54,21 @@ export async function saveAgencyAction(_prev: SettingsState, formData: FormData)
   const res = await updateAgency(actor, { ...input.data, timeZone: String(formData.get("timeZone") ?? "") });
   if (!res.ok) return error(res.error, typed);
   done();
+  return { ok: t.settings.saved };
+}
+
+/** The support e-mail and phone shown on the portal login; the portal login page reads them too. */
+export async function saveSupportContactAction(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
+  const actor = await requireTeam(["owner"]);
+  const { t, error } = await messages();
+  const typed = formValues(formData, ["supportEmail", "supportPhone"]);
+  const res = await updateSupportContact(actor, {
+    email: String(formData.get("supportEmail") ?? "").slice(0, 300),
+    phone: String(formData.get("supportPhone") ?? "").slice(0, 100),
+  });
+  if (!res.ok) return error(res.error, typed);
+  revalidatePath("/admin/settings");
+  revalidatePath("/login");
   return { ok: t.settings.saved };
 }
 

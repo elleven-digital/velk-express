@@ -118,6 +118,18 @@ describe("listTickets", () => {
     expect(await titles(owner, { who: "unassigned" })).toEqual(["Nobody"]);
   });
 
+  it("keeps projects and the other tickets apart by kind, and lists both without one", async () => {
+    await open(owner, acme, "Fix the menu");
+    const site = await open(owner, acme, "New site");
+    await db.update(tickets).set({ isProject: true }).where(eq(tickets.id, site.ticketId));
+
+    expect(await titles(owner, { kind: "projects" })).toEqual(["New site"]);
+    expect(await titles(owner, { kind: "tickets" })).toEqual(["Fix the menu"]);
+    expect((await titles(owner)).sort()).toEqual(["Fix the menu", "New site"]);
+    // a filter only narrows: the collaborator's scope still holds for projects
+    expect(await titles(collab, { kind: "projects", clientId: beta.id })).toEqual([]);
+  });
+
   it("searches by number, #number, title and client name", async () => {
     await open(owner, acme, "Fix the header");
     const second = await open(owner, beta, "Other thing");

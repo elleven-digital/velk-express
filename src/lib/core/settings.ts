@@ -54,6 +54,34 @@ export async function updateAgency(
   return ok();
 }
 
+const supportEmailSchema = z.email().max(254);
+/** Digits with the usual separators ("+55 (11) 98765-4321"), 6 to 20 digits. */
+const PHONE = /^\+?[\d\s().-]+$/;
+
+/**
+ * How a client who can't get in reaches the agency: an e-mail and a phone, each optional (empty
+ * clears it). The portal login offers them under "Can't sign in?" when at least one is set. A
+ * malformed e-mail is "invalidEmail", a phone that isn't digits with the usual separators is
+ * "invalidPhone", and nothing is saved.
+ */
+export async function updateSupportContact(
+  actor: TeamSession,
+  input: { email: string; phone: string },
+  deps: Deps = {},
+): Promise<Result<{ email: string | null; phone: string | null }>> {
+  if (!isOwner(actor)) return fail("forbidden");
+  const email = input.email.trim() || null;
+  const phone = input.phone.trim().replace(/\s+/g, " ") || null;
+  if (email !== null && !supportEmailSchema.safeParse(email).success) return fail("invalidEmail");
+  if (phone !== null) {
+    const digits = phone.replace(/\D/g, "").length;
+    if (phone.length > 40 || !PHONE.test(phone) || digits < 6 || digits > 20) return fail("invalidPhone");
+  }
+  const db = deps.db ?? appDb;
+  await db.update(agency).set({ supportEmail: email, supportPhone: phone }).where(eq(agency.id, 1));
+  return ok({ email, phone });
+}
+
 /** The real image type from the first bytes: the declared type and the name are not trusted. */
 function sniffImage(bytes: Buffer): "image/png" | "image/jpeg" | "image/webp" | null {
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {

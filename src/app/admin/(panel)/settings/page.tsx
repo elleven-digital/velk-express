@@ -18,6 +18,7 @@ import { db, agency as agencyTable, users } from "@/lib/db";
 import {
   removeLogoAction,
   saveAgencyAction,
+  saveSupportContactAction,
   saveAppUrlAction,
   saveAutoAssignAction,
   saveDefaultProviderAction,
@@ -29,7 +30,7 @@ import {
 } from "./actions";
 import { ConnectionsSection } from "./connections-section";
 import { LabelsSection } from "./labels-section";
-import { AgencyForm, AppUrlForm, DefaultProviderForm, LogoForm, VisibilityForm } from "./settings-forms";
+import { AgencyForm, AppUrlForm, DefaultProviderForm, LogoForm, SupportContactForm, VisibilityForm } from "./settings-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -192,6 +193,20 @@ export default async function SettingsPage() {
               />
             </Card>
           </div>
+        </section>
+
+        <section aria-labelledby="support-title">
+          <SectionTitle className="mb-1">
+            <span id="support-title">{s.supportTitle}</span>
+          </SectionTitle>
+          <p className="mb-4 text-[0.875rem] text-muted">{s.supportSub}</p>
+          <Card className="p-6 max-sm:p-4">
+            <SupportContactForm
+              action={saveSupportContactAction}
+              labels={{ email: s.supportEmail, phone: s.supportPhone, phoneHint: s.supportPhoneHint, save: s.save }}
+              values={{ email: brand?.supportEmail ?? "", phone: brand?.supportPhone ?? "" }}
+            />
+          </Card>
         </section>
 
         <section aria-labelledby="visibility-title">

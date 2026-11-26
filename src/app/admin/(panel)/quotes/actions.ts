@@ -95,6 +95,7 @@ export async function executeQuoteAction(_prev: LinkActionState, formData: FormD
   refresh(id.data);
   revalidatePath("/admin/clients");
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/projects");
   const invite = res.value.invite;
   return {
     ok: t.quotes.executeDone,

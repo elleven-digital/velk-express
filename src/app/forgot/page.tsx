@@ -12,12 +12,14 @@ export const dynamic = "force-dynamic";
 
 export default async function ForgotPage({ searchParams }: { searchParams: Promise<{ side?: string | string[] }> }) {
   const side = parseSide((await searchParams).side);
-  const { t } = await getPublicDict();
+  const { t, locale } = await getPublicDict();
   const agency = await getAgency();
   const canMail = canDeliverResetMail(getConfig().mail);
 
   return (
     <AuthShell
+
+      language={{ value: locale, label: t.ui.language }}
       title={t.auth.forgotTitle}
       sub={canMail ? t.auth.forgotSub : side === "portal" ? t.auth.forgotNoMailPortal : t.auth.forgotNoMailTeam}
       agency={{ name: agency?.name ?? "Velk Express", logoUrl: logoPath(agency?.logoFileId ?? null) }}

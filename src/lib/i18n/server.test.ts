@@ -8,15 +8,44 @@ vi.mock("next/headers", () => ({
 vi.mock("@/lib/agency", () => ({ getAgency: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getPortalSession: vi.fn(), getTeamSession: vi.fn() }));
 
+import { getAgency } from "@/lib/agency";
 import { getPublicDict, getPublicLocale } from "./server";
+
+const agencyWith = (locale: string) => ({
+  name: "Studio",
+  logoFileId: null,
+  locale,
+  currency: "BRL",
+  timeZone: "UTC",
+  supportEmail: null,
+  supportPhone: null,
+});
 
 beforeEach(() => {
   store.cookie = undefined;
   store.accept = null;
+  vi.mocked(getAgency).mockReset();
+  vi.mocked(getAgency).mockResolvedValue(null);
 });
 
 describe("getPublicLocale", () => {
-  it("falls back to en when nothing is given", async () => {
+  it("falls back to en when nothing is given and there is no agency yet", async () => {
+    expect(await getPublicLocale()).toBe("en");
+  });
+
+  it("falls back to the agency's language, after the cookie and the browser", async () => {
+    vi.mocked(getAgency).mockResolvedValue(agencyWith("pt"));
+    expect(await getPublicLocale()).toBe("pt");
+    store.accept = "fr-FR,de;q=0.8";
+    expect(await getPublicLocale()).toBe("pt");
+    store.accept = "es-ES,es;q=0.9";
+    expect(await getPublicLocale()).toBe("es");
+    store.cookie = "en";
+    expect(await getPublicLocale()).toBe("en");
+  });
+
+  it("falls back to en when the database can't be reached", async () => {
+    vi.mocked(getAgency).mockRejectedValue(new Error("down"));
     expect(await getPublicLocale()).toBe("en");
   });
 

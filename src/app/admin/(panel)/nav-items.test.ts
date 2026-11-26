@@ -5,12 +5,13 @@ import { teamNavItems } from "./nav-items";
 const hrefs = (role: Parameters<typeof teamNavItems>[0]) => teamNavItems(role, en.panel).map((i) => i.href);
 
 describe("teamNavItems", () => {
-  it("shows Settings to every role, collaborators included", () => {
-    expect(hrefs("collaborator")).toEqual(["/admin", "/admin/tickets", "/admin/clients", "/admin/settings"]);
-    expect(hrefs("manager")).toEqual(["/admin", "/admin/tickets", "/admin/clients", "/admin/charges", "/admin/settings"]);
+  it("shows Settings to every role, collaborators included, and Projects beside Tickets", () => {
+    expect(hrefs("collaborator")).toEqual(["/admin", "/admin/tickets", "/admin/projects", "/admin/clients", "/admin/settings"]);
+    expect(hrefs("manager")).toEqual(["/admin", "/admin/tickets", "/admin/projects", "/admin/clients", "/admin/charges", "/admin/settings"]);
     expect(hrefs("owner")).toEqual([
       "/admin",
       "/admin/tickets",
+      "/admin/projects",
       "/admin/clients",
       "/admin/quotes",
       "/admin/charges",

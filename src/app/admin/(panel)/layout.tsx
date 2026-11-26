@@ -1,17 +1,22 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { AgencyTimeZoneProvider } from "@/components/agency-time-zone";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { ShellNav } from "@/components/shell-nav";
 import { Callout, buttonClasses } from "@/components/ui";
 import { getAgency, logoPath } from "@/lib/agency";
-import { signOut } from "@/lib/auth/actions";
+import { setTeamLocaleAction, signOut } from "@/lib/auth/actions";
 import { requireTeam } from "@/lib/auth/guards";
-import { fmt } from "@/lib/i18n";
+import { DEFAULT_LOCALE, fmt, isLocale } from "@/lib/i18n";
 import { getUserDict } from "@/lib/i18n/server";
 import { getLatestRelease, isNewer, UPDATE_GUIDE_URL } from "@/lib/update-check";
 import { APP_VERSION } from "@/lib/version";
 import { teamNavItems } from "./nav-items";
 
 export const dynamic = "force-dynamic";
+
+// Safari on phones tints its bars with this: white, like the frame's top bar and tab bar.
+export const viewport: Viewport = { themeColor: "#ffffff" };
 
 /**
  * The panel's frame. Every page inside needs a team session; role rules live
@@ -37,6 +42,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       items={items}
       signOutAction={signOut}
       labels={{ navigation: t.ui.sections, more: t.ui.more, close: t.ui.close, signOut: t.common.signOut }}
+      accountExtra={
+        <LanguageSwitcher
+          action={setTeamLocaleAction}
+          value={isLocale(session.user.locale) ? session.user.locale : null}
+          agencyLocale={isLocale(agency.locale) ? agency.locale : DEFAULT_LOCALE}
+          labels={{ language: t.ui.language, agency: t.ui.languageAgency }}
+        />
+      }
     >
       {update ? (
         <Callout

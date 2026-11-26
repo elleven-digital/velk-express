@@ -5,13 +5,30 @@ import { db as appDb, agency, type Db } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { timeZoneOrDefault } from "@/lib/time-zone";
 
-export type AgencyBrand = { name: string; logoFileId: string | null; locale: string; currency: string; timeZone: string };
+export type AgencyBrand = {
+  name: string;
+  logoFileId: string | null;
+  locale: string;
+  currency: string;
+  timeZone: string;
+  /** How a client who can't sign in reaches the agency (portal login); null when not set. */
+  supportEmail: string | null;
+  supportPhone: string | null;
+};
 
 /** The one agency of this install, or null before the install. Read once per request. */
 export const getAgency = cache(async (): Promise<AgencyBrand | null> => {
   const [row] = await appDb.select().from(agency).limit(1);
   return row
-    ? { name: row.name, logoFileId: row.logoFileId, locale: row.locale, currency: row.currency, timeZone: timeZoneOrDefault(row.timeZone) }
+    ? {
+        name: row.name,
+        logoFileId: row.logoFileId,
+        locale: row.locale,
+        currency: row.currency,
+        timeZone: timeZoneOrDefault(row.timeZone),
+        supportEmail: row.supportEmail,
+        supportPhone: row.supportPhone,
+      }
     : null;
 });
 

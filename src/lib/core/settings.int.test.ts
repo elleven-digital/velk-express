@@ -10,7 +10,7 @@ import type { TeamSession } from "@/lib/auth/session";
 import { diskStorage, type Storage } from "@/lib/storage";
 import { readConfig } from "@/lib/config";
 import { getProviders } from "@/lib/payments";
-import { getPaymentSettings, removeAgencyLogo, setAgencyLogo, updateAgency, updateDefaultPaymentProvider } from "./settings";
+import { getPaymentSettings, removeAgencyLogo, setAgencyLogo, updateAgency, updateDefaultPaymentProvider, updateSupportContact } from "./settings";
 
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 
@@ -95,6 +95,37 @@ describe("updateAgency", () => {
       expect(res).toEqual({ ok: false, error: "invalid" });
     }
     expect((await row()).name).toBe("Studio Acme");
+  });
+});
+
+describe("updateSupportContact", () => {
+  it("is forbidden for a collaborator and changes nothing", async () => {
+    const res = await updateSupportContact(collaborator, { email: "help@acme.com", phone: "" }, deps());
+    expect(res).toEqual({ ok: false, error: "forbidden" });
+    expect(await row()).toMatchObject({ supportEmail: null, supportPhone: null });
+  });
+
+  it("saves the trimmed e-mail and phone, and empty clears each one", async () => {
+    const saved = await updateSupportContact(owner, { email: "  help@acme.com ", phone: " +55 (11)  98765-4321 " }, deps());
+    expect(saved).toEqual({ ok: true, value: { email: "help@acme.com", phone: "+55 (11) 98765-4321" } });
+    expect(await row()).toMatchObject({ supportEmail: "help@acme.com", supportPhone: "+55 (11) 98765-4321" });
+
+    await updateSupportContact(owner, { email: "", phone: "+55 11 3333-4444" }, deps());
+    expect(await row()).toMatchObject({ supportEmail: null, supportPhone: "+55 11 3333-4444" });
+    await updateSupportContact(owner, { email: " ", phone: "" }, deps());
+    expect(await row()).toMatchObject({ supportEmail: null, supportPhone: null });
+  });
+
+  it("refuses a malformed e-mail or phone and saves neither", async () => {
+    await updateSupportContact(owner, { email: "help@acme.com", phone: "11 3333-4444" }, deps());
+    expect(await updateSupportContact(owner, { email: "not-an-email", phone: "11 99999-0000" }, deps())).toEqual({
+      ok: false,
+      error: "invalidEmail",
+    });
+    for (const phone of ["call me", "123", "+55 11 3333-4444 ext 2", "1".repeat(21)]) {
+      expect(await updateSupportContact(owner, { email: "new@acme.com", phone }, deps())).toEqual({ ok: false, error: "invalidPhone" });
+    }
+    expect(await row()).toMatchObject({ supportEmail: "help@acme.com", supportPhone: "11 3333-4444" });
   });
 });
 

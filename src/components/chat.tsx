@@ -81,6 +81,8 @@ export function ChatThread({
   closedNotice,
   labels,
   heightClass = "max-h-[calc(100dvh-22rem)] lg:max-h-[calc(100dvh-15rem)]",
+  framed = false,
+  fill = false,
 }: {
   messages: ThreadMessage[];
   /** Quiet lines placed among the messages by time (the team's time entries). */
@@ -99,8 +101,14 @@ export function ChatThread({
   labels: ChatLabels;
   /** The most the whole chat (thread + composer) may grow to; the page's own sticky box can override it. */
   heightClass?: string;
+  /** Inside a white box: the messages turn gray (and a quoted reply white) to stand apart from it. */
+  framed?: boolean;
+  /** In a box of fixed height: the thread takes the room left and the composer sits at the bottom. */
+  fill?: boolean;
 }) {
   const fileLabels = labels.files;
+  const bubbleBg = framed ? "bg-paper" : "bg-white";
+  const quoteBg = framed ? "bg-white" : "bg-paper";
   // messages and events in one line of time; a message goes first when both share a moment
   type Item = { at: number; message: ThreadMessage; event?: undefined } | { at: number; event: ChatEvent; message?: undefined };
   const timeline: Item[] = [
@@ -258,7 +266,7 @@ export function ChatThread({
           }
           lastTop.current = el.scrollTop;
         }}
-        className="min-h-0 overflow-y-auto overscroll-contain -mx-2 px-2"
+        className={cn("min-h-0 overflow-y-auto overscroll-contain -mx-2 px-2", fill && "flex-1")}
       >
         <div ref={contentRef} className="flex flex-col gap-6 pt-1 pb-6">
           {timeline.length === 0 ? <p className="text-center text-muted py-10">{labels.emptyThread}</p> : null}
@@ -291,7 +299,7 @@ export function ChatThread({
             // box; the author line says who wrote it.
             return (
               <article key={m.id} className="group">
-                <header className="flex items-center gap-2.5 mb-2">
+                <header className="flex items-center gap-2.5 mb-1">
                   <Avatar name={m.authorName} kind={m.fromAgency ? "team" : "client"} size={28} />
                   {/* the role gives way first (it shrinks far faster than the name), so the name keeps its room */}
                   <span className="min-w-0 font-semibold text-ink truncate">{m.mine ? labels.you : m.authorName}</span>
@@ -352,13 +360,19 @@ export function ChatThread({
                 </header>
                 <div
                   id={`msg-${m.id}`}
-                  className="sm:ml-[38px] rounded-lg border border-line bg-paper px-4 py-3 text-[0.90625rem] leading-[1.6] text-ink transition-shadow"
+                  className={cn(
+                    "sm:ml-[38px] rounded-lg border border-line px-4 py-3 text-[0.90625rem] leading-[1.6] text-ink transition-shadow",
+                    bubbleBg,
+                  )}
                 >
                   {m.replyTo ? (
                     <button
                       type="button"
                       onClick={() => jumpTo(m.replyTo!.id)}
-                      className="block w-full text-left mb-2 rounded border-l-2 border-line-strong bg-white px-2.5 py-1.5 text-[0.8125rem] text-muted"
+                      className={cn(
+                        "block w-full text-left mb-2 rounded border-l-2 border-line-strong px-2.5 py-1.5 text-[0.8125rem] text-muted",
+                        quoteBg,
+                      )}
                     >
                       <span className="block font-medium text-ink">{m.replyTo.authorName}</span>
                       {m.replyTo.deleted ? (
@@ -430,7 +444,7 @@ export function ChatThread({
 
       {/* composer */}
       {closedNotice ? (
-        <div className="flex-none sm:ml-[38px] rounded-lg border border-line bg-paper px-4 py-3 text-center text-muted">
+        <div className={cn("flex-none sm:ml-[38px] rounded-lg border border-line px-4 py-3 text-center text-muted", bubbleBg)}>
           {closedNotice}
         </div>
       ) : (
@@ -444,7 +458,7 @@ export function ChatThread({
         >
           {replyTo ? (
             // the whole message being answered, so it is clearly the right one
-            <div className="rounded-md border border-line bg-paper text-[0.8125rem]">
+            <div className="rounded-md border border-line bg-white text-[0.8125rem]">
               <div className="flex items-center justify-between gap-3 px-3 pt-2">
                 <span className="font-medium text-ink truncate">{labels.replyingTo.replace("{name}", replyTo.name)}</span>
                 <button
