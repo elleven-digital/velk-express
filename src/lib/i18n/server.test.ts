@@ -11,7 +11,15 @@ vi.mock("@/lib/auth/session", () => ({ getPortalSession: vi.fn(), getTeamSession
 import { getAgency } from "@/lib/agency";
 import { getPublicDict, getPublicLocale } from "./server";
 
-const agencyWith = (locale: string) => ({ name: "Studio", logoFileId: null, locale, currency: "BRL", timeZone: "UTC" });
+const agencyWith = (locale: string) => ({
+  name: "Studio",
+  logoFileId: null,
+  locale,
+  currency: "BRL",
+  timeZone: "UTC",
+  supportEmail: null,
+  supportPhone: null,
+});
 
 beforeEach(() => {
   store.cookie = undefined;

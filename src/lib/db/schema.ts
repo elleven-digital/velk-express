@@ -58,6 +58,9 @@ export const agency = pgTable(
     locale: text("locale").notNull().default("en"),
     // IANA zone of the hours cycles, "today" and server-rendered times (see src/lib/time-zone.ts).
     timeZone: text("time_zone").notNull().default("America/Sao_Paulo"),
+    // How a client who can't get in reaches the agency, shown on the portal login; null = not set.
+    supportEmail: text("support_email"),
+    supportPhone: text("support_phone"),
     // Team visibility for collaborators (owner and manager always see everything).
     collabClientScope: collabScope("collab_client_scope").notNull().default("assigned"),
     collabTicketScope: collabScope("collab_ticket_scope").notNull().default("all"),

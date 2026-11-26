@@ -19,6 +19,7 @@ export function AuthShell({
   agency,
   areaLabel,
   language,
+  below,
   wide,
 }: {
   title: ReactNode;
@@ -32,6 +33,8 @@ export function AuthShell({
   areaLabel?: string;
   /** The page's language, with a picker for it beside the footer line (logged-out pages). */
   language?: { value: Locale; label: string };
+  /** Right under the box, before the footer line (the portal login's "Can't sign in?"). */
+  below?: ReactNode;
   wide?: boolean;
 }) {
   return (
@@ -49,6 +52,7 @@ export function AuthShell({
           {sub ? <p className="text-muted text-[0.875rem] mt-2 mb-7">{sub}</p> : <div className="mb-7" />}
           {children}
         </div>
+        {below}
         {footer || language ? (
           <div className="flex flex-wrap items-center justify-between gap-3 mt-6 px-1 text-[0.875rem] text-muted">
             <div>{footer}</div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AccessHelp } from "@/components/access-help";
 import { AuthShell } from "@/components/auth-shell";
 import { LoginForm } from "@/components/auth-forms";
 import { getAgency, logoPath } from "@/lib/agency";
@@ -23,6 +24,18 @@ export default async function PortalLoginPage() {
       title={t.auth.portalAreaLabel}
       sub={fmt(t.auth.portalLoginSub, { agency: name })}
       agency={{ name, logoUrl: logoPath(agency?.logoFileId ?? null) }}
+      below={
+        <AccessHelp
+          email={agency?.supportEmail ?? null}
+          phone={agency?.supportPhone ?? null}
+          labels={{
+            title: t.auth.cantAccess,
+            body: fmt(t.auth.cantAccessBody, { agency: name }),
+            email: t.common.email,
+            phone: t.auth.cantAccessPhone,
+          }}
+        />
+      }
       footer={
         <Link href="/admin/login" className="font-medium text-ink hover:underline underline-offset-[3px]">
           {t.auth.teamLoginLink}

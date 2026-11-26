@@ -138,6 +138,33 @@ export function LogoForm({
   );
 }
 
+export function SupportContactForm({
+  action,
+  labels,
+  values,
+}: {
+  action: Action;
+  labels: { email: string; phone: string; phoneHint: string; save: string };
+  values: { email: string; phone: string };
+}) {
+  const [state, run] = useActionState(action, null);
+  const typed = state?.values;
+  return (
+    <form action={run} className="space-y-5">
+      <Notice state={state} />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label={labels.email} htmlFor="supportEmail">
+          <Input id="supportEmail" name="supportEmail" type="email" maxLength={254} defaultValue={typed?.supportEmail ?? values.email} />
+        </Field>
+        <Field label={labels.phone} htmlFor="supportPhone" hint={labels.phoneHint}>
+          <Input id="supportPhone" name="supportPhone" type="tel" maxLength={40} defaultValue={typed?.supportPhone ?? values.phone} />
+        </Field>
+      </div>
+      <SubmitButton variant="secondary">{labels.save}</SubmitButton>
+    </form>
+  );
+}
+
 export function AppUrlForm({
   action,
   label,
