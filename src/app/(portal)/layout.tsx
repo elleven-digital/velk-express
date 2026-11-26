@@ -89,7 +89,7 @@ export default async function PortalLayout({ children }: { children: React.React
   );
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <header className="hidden lg:flex items-center gap-6 h-14 px-6 border-b border-line bg-white sticky top-0 z-30">
         <Link href="/" className="flex items-center gap-2.5 min-w-0 flex-none">
           <AgencyAvatar name={agency.name} logoUrl={logoUrl} size={24} />
