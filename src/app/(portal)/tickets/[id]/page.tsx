@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatMinutes, formatMoney } from "@/lib/format";
 import type { Currency } from "@/lib/core/settings";
@@ -9,9 +8,8 @@ import { chatLabelsOf, fileLabelsOf } from "@/lib/chat-labels";
 import { getPortalDict } from "@/lib/i18n/server";
 import { TicketFiles } from "@/components/attachments";
 import { ChatThread } from "@/components/chat";
-import { ConversationLayout } from "@/components/conversation-layout";
+import { ConversationLayout, SideToggle } from "@/components/conversation-layout";
 import { fillNode } from "@/components/fill-node";
-import { Icon } from "@/components/icons";
 import { LocalTime } from "@/components/local-time";
 import { MarkRead } from "@/components/mark-read";
 import { Badge, buttonClasses, Card, PageHeader } from "@/components/ui";
@@ -35,23 +33,38 @@ export default async function PortalTicketPage({ params }: { params: Promise<{ i
   const charge = view.charge;
   const chargeMoney = charge ? formatMoney(charge.amountCents, (charge.currency || agency?.currency || "BRL") as Currency, locale) : null;
 
+  // Under the title only what the client acts on: closed, paid, time logged. The number and the
+  // site stay out (the list shows them).
+  const facts = [
+    closed ? <Badge key="closed" tone="muted">{t.tickets.statusClosed}</Badge> : null,
+    charge?.status === "paid" ? (
+      <Badge key="paid" tone="ok">
+        {t.charges.statusPaid} · {chargeMoney}
+      </Badge>
+    ) : null,
+    view.timeLoggedMinutes !== null ? (
+      <span key="time">
+        {t.portal.timeLogged}: <span className="tabular">{formatMinutes(view.timeLoggedMinutes)}</span>
+      </span>
+    ) : null,
+  ].filter(Boolean);
+
   return (
     <>
       {/* from the browser, after the page is on screen: never while rendering or prefetching */}
       <MarkRead action={markReadAction.bind(null, ticket.id)} at={view.renderedAt} />
       <ConversationLayout
+        closeLabel={t.ui.close}
         box={
           <>
-            <Link
-              href={ticket.isProject ? "/projects" : "/tickets"}
-              className="self-start inline-flex items-center gap-1 mb-3 text-[0.875rem] text-muted hover:text-ink transition-colors"
-            >
-              <Icon name="chevron" size={14} className="rotate-90" />
-              {ticket.isProject ? t.portal.backToProjects : t.portal.backToTickets}
-            </Link>
             <PageHeader
               actionsBeside
               crumb={null}
+              back={{
+                href: ticket.isProject ? "/projects" : "/tickets",
+                label: ticket.isProject ? t.portal.backToProjects : t.portal.backToTicketsLong,
+              }}
+              titleAside={<SideToggle label={t.files.title} icon="paperclip" count={view.files.length} />}
               title={ticket.title}
               actions={
                 charge?.payPath ? (
@@ -60,23 +73,7 @@ export default async function PortalTicketPage({ params }: { params: Promise<{ i
                   </a>
                 ) : undefined
               }
-              meta={
-                <>
-                  {closed ? <Badge tone="muted">{t.tickets.statusClosed}</Badge> : null}
-                  {charge?.status === "paid" ? (
-                    <Badge tone="ok">
-                      {t.charges.statusPaid} · {chargeMoney}
-                    </Badge>
-                  ) : null}
-                  <span className="tabular">#{ticket.number}</span>
-                  {view.siteName ?? t.tickets.generalLabel}
-                  {view.timeLoggedMinutes !== null ? (
-                    <span>
-                      {t.portal.timeLogged}: <span className="tabular">{formatMinutes(view.timeLoggedMinutes)}</span>
-                    </span>
-                  ) : null}
-                </>
-              }
+              meta={facts.length > 0 ? <>{facts}</> : undefined}
             />
             <ChatThread
               messages={view.messages}

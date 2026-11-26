@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { AgencyTimeZoneProvider } from "@/components/agency-time-zone";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -13,6 +14,9 @@ import { APP_VERSION } from "@/lib/version";
 import { teamNavItems } from "./nav-items";
 
 export const dynamic = "force-dynamic";
+
+// Safari on phones tints its bars with this: white, like the frame's top bar and tab bar.
+export const viewport: Viewport = { themeColor: "#ffffff" };
 
 /**
  * The panel's frame. Every page inside needs a team session; role rules live

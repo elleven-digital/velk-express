@@ -217,7 +217,7 @@ export function BottomTabs({
     <>
       <nav
         aria-label={label}
-        className="lg:hidden sticky bottom-0 z-30 flex justify-around border-t border-line bg-white/95 backdrop-blur px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),10px)]"
+        className="lg:hidden sticky bottom-0 z-30 flex-none flex justify-around border-t border-line bg-white/95 backdrop-blur px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),10px)]"
       >
         {tabs.map((item) => (
           <Link
@@ -400,7 +400,9 @@ export function ShellNav({
 
   return (
     <CrumbProvider>
-      <div className="min-h-screen lg:flex">
+      {/* On phones the frame is an app screen of the visible height: the top bar and the tab bar stay
+          put and only <main> scrolls, so Safari's bounce never drags them. */}
+      <div data-shell className="min-h-screen lg:flex max-lg:h-dvh max-lg:min-h-0 max-lg:overflow-hidden">
         <aside className="max-lg:hidden w-60 flex-none sticky top-0 h-screen flex flex-col border-r border-line bg-white p-3">
           <div className={cn("flex items-center gap-2.5 px-2 mb-3 min-w-0", agency.area ? "py-1" : "h-9")}>
             <AgencyAvatar name={agency.name} logoUrl={agency.logoUrl} size={agency.area ? 32 : 24} />
@@ -413,11 +415,12 @@ export function ShellNav({
           <div className="mt-auto border-t border-line pt-2">{account}</div>
         </aside>
 
-        {/* a page marked data-bleed (a ticket's conversation) has no top bar on wide screens: its box runs the window's height */}
-        <div className="group/shell flex-1 min-w-0 flex flex-col min-h-screen">
+        {/* a page marked data-bleed (a ticket's conversation) has no top bar: its box runs the screen's
+            height, and on phones only its messages scroll */}
+        <div className="group/shell flex-1 min-w-0 flex flex-col min-h-screen max-lg:h-full max-lg:min-h-0">
           <header
             className={cn(
-              "h-14 flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6 lg:group-has-[[data-bleed]]/shell:hidden",
+              "h-14 flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6 group-has-[[data-bleed]]/shell:hidden",
               !crumbBar && "lg:hidden",
             )}
           >
@@ -431,7 +434,7 @@ export function ShellNav({
             <TopCrumbs items={items} />
           </header>
           {/* and runs edge to edge beside the sidebar */}
-          <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-8 max-sm:py-6 lg:has-[[data-bleed]]:max-w-none lg:has-[[data-bleed]]:p-0">
+          <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-8 max-sm:py-6 has-[[data-bleed]]:max-w-none has-[[data-bleed]]:p-0 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:bg-paper">
             {children}
           </main>
           <BottomTabs

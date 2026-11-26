@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { AgencyTimeZoneProvider } from "@/components/agency-time-zone";
 import { CompanySwitcher } from "@/components/company-switcher";
@@ -15,6 +16,9 @@ import { getPortalDict } from "@/lib/i18n/server";
 import { switchCompanyAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+// Safari on phones tints its bars with this: white, like the frame's top bar and tab bar.
+export const viewport: Viewport = { themeColor: "#ffffff" };
 
 /**
  * The client portal's frame, the same as the team's: a sidebar with the agency, the sections and

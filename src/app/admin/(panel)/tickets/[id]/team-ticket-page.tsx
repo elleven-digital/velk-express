@@ -12,7 +12,7 @@ import { ticketStatusBadge } from "@/lib/turn";
 import { TicketFiles } from "@/components/attachments";
 import { ChargeSection } from "@/components/charge-section";
 import { ChatThread } from "@/components/chat";
-import { ConversationLayout } from "@/components/conversation-layout";
+import { ConversationLayout, SideToggle } from "@/components/conversation-layout";
 import { PageCrumb } from "@/components/crumbs";
 import { fillNode } from "@/components/fill-node";
 import { Icon } from "@/components/icons";
@@ -82,11 +82,17 @@ export async function TeamTicketPage({ params, area }: { params: Promise<{ id: s
       {/* from the browser, after the page is on screen: never while rendering or prefetching */}
       <MarkRead action={markReadAction.bind(null, ticket.id)} at={view.renderedAt} />
       <ConversationLayout
+        closeLabel={t.ui.close}
         box={
           <>
             <PageHeader
               actionsBeside
               crumb={null}
+              back={{
+                href: ticket.isProject ? "/admin/projects" : "/admin/tickets",
+                label: ticket.isProject ? t.tickets.backToProjects : t.tickets.backToTickets,
+              }}
+              titleAside={<SideToggle label={t.tickets.details} icon="list" />}
               title={ticket.title}
               meta={
                 <>
