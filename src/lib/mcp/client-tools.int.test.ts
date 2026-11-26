@@ -402,9 +402,9 @@ describe("portal access", () => {
     expect(mailed).toHaveBeenCalledTimes(1);
 
     const access = data(await call(owner, "get_portal_access", { client_id: acme.id }));
-    // The company's first login is its admin.
+    // The role asked is kept, even for the company's first login.
     expect(access.logins).toEqual([
-      { id: invited.portal_user_id, name: "Dora", email: "dora@acme.com", role: "admin", status: "invited" },
+      { id: invited.portal_user_id, name: "Dora", email: "dora@acme.com", role: "collaborator", status: "invited" },
     ]);
 
     expect(data(await call(owner, "resend_portal_invite", { client_id: acme.id, portal_user_id: invited.portal_user_id })).email_sent).toBe(
@@ -441,7 +441,7 @@ describe("portal access", () => {
       portal_user_id: known.id,
       name: "Gil",
       status: "active",
-      will_be_admin: true,
+      will_be_admin: false,
       companies: [{ name: "Beta", role: "admin" }],
     });
     const before = await db

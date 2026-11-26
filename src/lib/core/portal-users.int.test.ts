@@ -130,12 +130,21 @@ afterAll(async () => {
 });
 
 describe("invitePortalUser", () => {
-  it("makes the first login of a company an admin whatever role was asked, and keeps the second as asked", async () => {
+  it("gives every invite the role that was chosen, even in a company with no admin yet", async () => {
     const first = await invitePortalUser(manager, A.id, { name: "Bia", email: "bia@x.com", role: "collaborator" }, { db });
-    const second = await invitePortalUser(manager, A.id, { name: "Caio", email: "caio@x.com", role: "collaborator" }, { db });
+    const second = await invitePortalUser(manager, A.id, { name: "Caio", email: "caio@x.com", role: "admin" }, { db });
     if (!first.ok || !second.ok) throw new Error("invite failed");
-    expect(await roleIn(first.value.clientUserId, A)).toBe("admin");
-    expect(await roleIn(second.value.clientUserId, A)).toBe("collaborator");
+    expect(await roleIn(first.value.clientUserId, A)).toBe("collaborator");
+    expect(await roleIn(second.value.clientUserId, A)).toBe("admin");
+  });
+
+  it("keeps the chosen role after the only (pending) admin was made a collaborator", async () => {
+    const nat = await invitePortalUser(owner, A.id, { name: "Nat", email: "nat@x.com", role: "admin" }, { db });
+    if (!nat.ok) throw new Error("invite failed");
+    expect((await setPortalRole(owner, A.id, nat.value.clientUserId, "collaborator", { db })).ok).toBe(true);
+    const bia = await invitePortalUser(owner, A.id, { name: "Bia", email: "bia@x.com", role: "collaborator" }, { db });
+    if (!bia.ok) throw new Error("invite failed");
+    expect(await roleIn(bia.value.clientUserId, A)).toBe("collaborator");
   });
 
   it("normalizes the email, returns a copyable client invite link and reports no mail without SMTP", async () => {
@@ -176,8 +185,8 @@ describe("invitePortalUser", () => {
     expect(mail).not.toHaveBeenCalled();
     expect(await db.select().from(clientUsers)).toHaveLength(1);
     expect(await db.select().from(clientMemberships)).toHaveLength(2);
-    // B had no admin, so the first link there is an admin too.
-    expect(await roleIn(res.value.clientUserId, B)).toBe("admin");
+    // The link keeps the role that was chosen, even though B had no admin.
+    expect(await roleIn(res.value.clientUserId, B)).toBe("collaborator");
   });
 
   it("is not blocked by a team member with the same email", async () => {
@@ -525,7 +534,7 @@ describe("linking an existing login needs a confirmation", () => {
         outcome: "confirm",
         link: null,
         emailed: false,
-        existing: { name: "Bia", active: true, companies: [{ name: "Alpha", role: "collaborator" }], willBeAdmin: true },
+        existing: { name: "Bia", active: true, companies: [{ name: "Alpha", role: "collaborator" }], willBeAdmin: false },
       },
     });
     expect(await rowCounts()).toEqual(before);
@@ -552,24 +561,21 @@ describe("linking an existing login needs a confirmation", () => {
     const res = await invitePortalUser(
       manager,
       B.id,
-      { name: "Bia", email: "bia@x.com", role: "collaborator", confirm: { clientUserId: bia.id, active: true, willBeAdmin: true } },
+      { name: "Bia", email: "bia@x.com", role: "collaborator", confirm: { clientUserId: bia.id, active: true, willBeAdmin: false } },
       { db },
     );
     expect(res.ok && res.value).toMatchObject({ outcome: "linked", wasPending: false, link: null });
-    expect(await roleIn(bia.id, B)).toBe("admin");
+    expect(await roleIn(bia.id, B)).toBe("collaborator");
   });
 
-  it("confirm is asked again when willBeAdmin changed", async () => {
-    // Company A has no admin yet; the login already lives in B.
+  it("confirm is asked again when it does not match the role chosen now", async () => {
+    // Company A has no admin yet; the login already lives in B. The role chosen is kept as chosen.
     const bia = await makePerson("Bia", "bia@x.com");
     await join(bia, B, "admin");
     const input = { name: "Bia", email: "bia@x.com", role: "collaborator" as const };
     const asked = await invitePortalUser(owner, A.id, input, { db });
     if (!asked.ok || asked.value.outcome !== "confirm") throw new Error("expected confirm");
-    expect(asked.value.existing?.willBeAdmin).toBe(true);
-    // Meanwhile someone else becomes the admin of A.
-    const first = await invitePortalUser(owner, A.id, { name: "Zed", email: "zed@x.com", role: "collaborator" }, { db });
-    expect(first.ok && first.value.outcome).toBe("invited");
+    expect(asked.value.existing?.willBeAdmin).toBe(false);
     const stale = await invitePortalUser(
       owner,
       A.id,
@@ -577,7 +583,6 @@ describe("linking an existing login needs a confirmation", () => {
       { db },
     );
     expect(stale.ok && stale.value.outcome).toBe("confirm");
-    expect(stale.ok && stale.value.existing?.willBeAdmin).toBe(false);
     expect(await roleIn(bia.id, A)).toBeUndefined();
     const fresh = await invitePortalUser(
       owner,

@@ -562,7 +562,7 @@ export const registerClientTools: ToolRegistrar = (server, scope) => {
     "invite_to_portal",
     {
       description:
-        "Owners and managers: gives a person access to the client's area. A new e-mail gets a login and an invite by e-mail (the link itself never comes back here). An e-mail that already has a login through other companies is never linked silently: the answer is a question (outcome confirm, ok false, nothing written) to put to the person; only if they say yes, call again with the same arguments and confirm copied from that answer's existing_login (portal_user_id, status, will_be_admin). If the login changed since (it became active, or the company's first admin changed), the answer is the question again, nothing linked: ask again. The company's first login is always an admin. Only when the connected person asks.",
+        "Owners and managers: gives a person access to the client's area. A new e-mail gets a login and an invite by e-mail (the link itself never comes back here). An e-mail that already has a login through other companies is never linked silently: the answer is a question (outcome confirm, ok false, nothing written) to put to the person; only if they say yes, call again with the same arguments and confirm copied from that answer's existing_login (portal_user_id, status, will_be_admin). If the login changed since (it became active) or the role differs, the answer is the question again, nothing linked: ask again. The person gets the role given, even when the company has no admin yet. Only when the connected person asks.",
       inputSchema: z.object({
         client_id: CLIENT_ID,
         name: z.string().min(1).max(200),

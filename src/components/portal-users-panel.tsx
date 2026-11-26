@@ -65,7 +65,8 @@ function Errors({ states }: { states: LinkActionState[] }) {
   );
 }
 
-function InviteForm({ action, labels }: { action: Action; labels: PortalUsersLabels }) {
+/** `defaultRole` is admin while the company has no admin, so the usual choice is one click away; the chosen role is always kept. */
+function InviteForm({ action, labels, defaultRole }: { action: Action; labels: PortalUsersLabels; defaultRole: ClientRole }) {
   const [state, formAction] = useActionState(action, null);
   const [dismissed, setDismissed] = useState<unknown>(null);
   const confirm = labels.confirm && state?.confirm && dismissed !== state ? state.confirm : null;
@@ -116,7 +117,7 @@ function InviteForm({ action, labels }: { action: Action; labels: PortalUsersLab
         <Input id="pu-email" name="email" type="email" required maxLength={254} autoComplete="off" defaultValue={v?.email ?? ""} />
       </Field>
       <Field label={labels.role} htmlFor="pu-role" hint={labels.rolesHint}>
-        <Select key={v?.role} id="pu-role" name="role" defaultValue={v?.role ?? "collaborator"}>
+        <Select key={`${v?.role}-${defaultRole}`} id="pu-role" name="role" defaultValue={v?.role ?? defaultRole}>
           {ROLES.map((r) => (
             <option key={r} value={r}>
               {labels.roles[r]}
@@ -148,7 +149,8 @@ function UserControls({ user, actions, labels }: { user: PanelUser; actions: Por
       <div className="flex flex-wrap items-center gap-2">
         <form action={roleFormAction} className="flex items-center gap-2">
           <input type="hidden" name="clientUserId" value={user.id} />
-          <Select name="role" defaultValue={user.role} aria-label={`${labels.role}: ${user.name}`} className="h-8 !w-auto !py-1">
+          {/* keyed by the saved role, so the field shows it after a save instead of the value it started with */}
+          <Select key={user.role} name="role" defaultValue={user.role} aria-label={`${labels.role}: ${user.name}`} className="h-8 !w-auto !py-1">
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {labels.roles[r]}
@@ -247,7 +249,11 @@ export function PortalUsersPanel({
 
       <Card className="p-6 max-sm:p-4 lg:sticky lg:top-6">
         <SectionTitle className="mb-4">{labels.inviteTitle}</SectionTitle>
-        <InviteForm action={actions.invite} labels={labels} />
+        <InviteForm
+          action={actions.invite}
+          labels={labels}
+          defaultRole={users.some((u) => u.role === "admin") ? "collaborator" : "admin"}
+        />
       </Card>
     </div>
   );
