@@ -350,7 +350,7 @@ export function Menu({
 
 /**
  * The panel frame: a sidebar on wide screens (agency, sections, the signed-in
- * user with log out), a top bar with the breadcrumb, and a bottom tab bar on
+ * user with a log-out link under the name), a top bar with the breadcrumb, and a bottom tab bar on
  * phones. Pages render inside as children and may name themselves with
  * <PageCrumb> (PageHeader does it).
  */
@@ -363,7 +363,7 @@ export function ShellNav({
   children,
 }: {
   agency: { name: string; logoUrl?: string | null };
-  user: { name: string; roleLabel: string };
+  user: { name: string };
   items: NavItem[];
   /** A server action (or any form action) that ends the session. */
   signOutAction: () => void | Promise<void>;
@@ -376,18 +376,16 @@ export function ShellNav({
         <Avatar name={user.name} size={32} />
         <div className="min-w-0 leading-tight">
           <div className="truncate text-[0.875rem] font-medium text-ink">{user.name}</div>
-          <div className="truncate text-[0.8125rem] text-muted">{user.roleLabel}</div>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="text-[0.8125rem] text-muted underline-offset-[3px] hover:text-ink hover:underline transition-colors"
+            >
+              {labels.signOut}
+            </button>
+          </form>
         </div>
       </div>
-      <form action={signOutAction} className="mt-2">
-        <button
-          type="submit"
-          className="flex w-full items-center gap-2.5 h-8 px-2 -mx-2 rounded-md text-[0.875rem] text-muted hover:bg-chip hover:text-ink transition-colors"
-        >
-          <Icon name="logout" />
-          {labels.signOut}
-        </button>
-      </form>
     </div>
   );
 

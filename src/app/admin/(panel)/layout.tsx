@@ -25,8 +25,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const role = session.user.role;
   const items = teamNavItems(role, t.panel);
 
-  const roleLabels = { owner: t.team.roleOwner, manager: t.team.roleManager, collaborator: t.team.roleCollaborator };
-
   // Only people who can act on an update see the notice; null (the common case
   // while the repository is private, or when the check is off) shows nothing.
   const latest = role === "owner" || role === "manager" ? await getLatestRelease() : null;
@@ -35,7 +33,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <ShellNav
       agency={{ name: agency.name, logoUrl: logoPath(agency.logoFileId) }}
-      user={{ name: session.user.name, roleLabel: roleLabels[role] }}
+      user={{ name: session.user.name }}
       items={items}
       signOutAction={signOut}
       labels={{ navigation: t.ui.sections, more: t.ui.more, close: t.ui.close, signOut: t.common.signOut }}
