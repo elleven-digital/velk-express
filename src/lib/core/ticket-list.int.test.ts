@@ -207,6 +207,7 @@ describe("listTickets columns", () => {
         "createdAt",
         "createdByType",
         "id",
+        "isProject",
         "lastMessageAt",
         "number",
         "status",

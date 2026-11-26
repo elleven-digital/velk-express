@@ -6,7 +6,7 @@ import { AttachmentField, type AttachmentLabels } from "./attachments";
 import { RichEditor, type EditorLabels } from "./editor";
 import { SubmitButton } from "./submit-button";
 import type { TicketFormState } from "./ticket-form-state";
-import { Callout, Field, Input, Select, cn } from "./ui";
+import { Callout, Checkbox, Field, Input, Select, cn } from "./ui";
 
 type ClientOption = { id: string; name: string; supportActive: boolean };
 type SiteOption = { id: string; name: string; clientId: string };
@@ -21,6 +21,8 @@ export type TicketFormLabels = EditorLabels &
     titleField: string;
     valueField: string;
     valueHint: string;
+    projectToggle: string;
+    projectHint: string;
     valuePlaceholder: string;
     firstMessage: string;
     submit: string;
@@ -145,6 +147,15 @@ export function TicketNewForm({
       <Field label={labels.titleField} htmlFor="tk-title">
         <Input id="tk-title" name="title" required maxLength={200} defaultValue={values?.title ?? ""} />
       </Field>
+
+      {canSetValue ? (
+        <Checkbox
+          name="isProject"
+          defaultChecked={values?.isProject === "on"}
+          label={labels.projectToggle}
+          hint={labels.projectHint}
+        />
+      ) : null}
 
       {canSetValue && effectiveType === "single" ? (
         <Field label={labels.valueField} htmlFor="tk-value" hint={labels.valueHint}>

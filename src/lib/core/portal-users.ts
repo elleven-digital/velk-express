@@ -26,8 +26,8 @@ import { fail, ok, type Result } from "./result";
 
 /**
  * The people of a company, managed by the agency team (client Access tab) and by the company's
- * own admins (portal Users page) under the same rules: one login per e-mail, a company's first
- * person is an admin, and a company never loses its last admin who can sign in. The company id
+ * own admins (portal Users page) under the same rules: one login per e-mail, an invite gets the
+ * role that was chosen, and a company never loses its last admin who can sign in. The company id
  * always comes from the caller; for a portal actor it must be the session's own company.
  * Errors are codes the UI translates.
  */
@@ -162,7 +162,10 @@ export async function tryMailLinked(
   }
 }
 
-/** A company with no admin yet gets one: whoever comes first can manage the others. */
+/**
+ * Quote execution adds logins without anyone choosing a role: a company with no admin yet gets one,
+ * so whoever comes first can manage the others. Invites keep the role that was chosen.
+ */
 async function roleForNewMember(tx: Db, clientId: string, asked: ClientRole): Promise<ClientRole> {
   const [hasAdmin] = await tx
     .select({ id: clientMemberships.clientUserId })
@@ -282,7 +285,8 @@ type Invited = {
  * (in another company) is never linked silently: the team first gets the outcome "confirm" with
  * the login's own companies, and links only by sending back `confirm` with that login's id and
  * its current active flag and the role it would get (checked under the locks, so a pending login
- * that became active, or a company that gained its first admin, in between asks again). A portal admin can never link an existing login (existsElsewhere).
+ * that became active in between asks again). The person gets the role that was chosen, even in a
+ * company with no admin yet: the form starts on admin there, and the choice is the team's. A portal admin can never link an existing login (existsElsewhere).
  */
 export async function invitePortalUser(
   actor: PortalActor,
@@ -321,7 +325,7 @@ export async function invitePortalUser(
         if (known) return fail((await isMember(known.id)) ? "alreadyMember" : "existsElsewhere");
       }
 
-      const role = await roleForNewMember(txDb, clientId, asked);
+      const role = asked;
 
       // Locking the person's row keeps a concurrent removal from deleting the login under the new membership.
       const [existing] = await tx.select().from(clientUsers).where(eq(clientUsers.email, email)).for("update");

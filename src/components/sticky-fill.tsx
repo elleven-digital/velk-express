@@ -10,6 +10,12 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
  * max-height. The className should carry a CSS max-height close to the first position, so the
  * server-rendered page doesn't jump before this runs.
  */
+/**
+ * The least the box shrinks to: about the composer and a message above it. Kept small so the
+ * composer stays on screen in a short window, where the page's header takes most of the height.
+ */
+const MIN_HEIGHT = 200;
+
 export function StickyFill({
   className,
   children,
@@ -40,11 +46,11 @@ export function StickyFill({
         }
         // where the box starts on the page, so scrolling doesn't change it
         const start = el.getBoundingClientRect().top + window.scrollY;
-        el.style.maxHeight = `${Math.max(360, window.innerHeight - start - mobileBottom)}px`;
+        el.style.maxHeight = `${Math.max(MIN_HEIGHT, window.innerHeight - start - mobileBottom)}px`;
         return;
       }
       const start = Math.max(top, el.getBoundingClientRect().top);
-      el.style.maxHeight = `${Math.max(420, window.innerHeight - start - bottom)}px`;
+      el.style.maxHeight = `${Math.max(MIN_HEIGHT, window.innerHeight - start - bottom)}px`;
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(update);

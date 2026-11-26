@@ -9,7 +9,7 @@ import { addTicketLabel, removeTicketLabel } from "@/lib/core/labels";
 import { addTimeEntry, deleteTimeEntry } from "@/lib/core/hours";
 import { deleteMessage, editMessage, markTicketRead, postMessage } from "@/lib/core/messages";
 import { ticketUnread } from "@/lib/core/ticket-view";
-import { addTicketAssignee, assumeTicket, findTicket, removeTicketAssignee, setTicketStatus } from "@/lib/core/tickets";
+import { addTicketAssignee, assumeTicket, findTicket, removeTicketAssignee, setTicketProject, setTicketStatus } from "@/lib/core/tickets";
 import type { Result } from "@/lib/core/result";
 import { formValues } from "@/lib/form-values";
 import { getUserDict } from "@/lib/i18n/server";
@@ -110,6 +110,15 @@ export async function toggleStatusAction(ticketId: string): Promise<MessageActio
     const found = await findTicket(actor, ticketId);
     if (!found.ok) return found;
     return setTicketStatus(actor, ticketId, found.value.status === "open" ? "closed" : "open");
+  });
+}
+
+export async function toggleProjectAction(ticketId: string): Promise<MessageActionState> {
+  const actor = await requireTeam();
+  return answer(ticketId, async () => {
+    const found = await findTicket(actor, ticketId);
+    if (!found.ok) return found;
+    return setTicketProject(actor, ticketId, !found.value.isProject);
   });
 }
 

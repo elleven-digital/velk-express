@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { parseFileIds } from "@/lib/attachments";
 import { requirePortal } from "@/lib/auth/guards";
+import { getPortalSession } from "@/lib/auth/session";
 import { addTicketAttachments, deleteTicketAttachment } from "@/lib/core/attachments";
 import { deleteMessage, editMessage, postMessage } from "@/lib/core/messages";
+import { markPortalTicketRead, portalTicketUnread } from "@/lib/core/portal-tickets";
 import type { Result } from "@/lib/core/result";
 import { formValues } from "@/lib/form-values";
 import { getPortalDict } from "@/lib/i18n/server";
@@ -20,7 +22,9 @@ import type { MessageActionState } from "@/components/chat";
 
 function refresh(ticketId: string) {
   revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath(`/projects/${ticketId}`);
   revalidatePath("/tickets");
+  revalidatePath("/projects");
   revalidatePath("/");
   revalidatePath(`/admin/tickets/${ticketId}`);
   revalidatePath("/admin/tickets");
@@ -78,4 +82,17 @@ export async function attachFilesAction(ticketId: string, fileIds: string[]): Pr
 export async function removeFileAction(ticketId: string, fileId: string): Promise<MessageActionState> {
   const session = await requirePortal();
   return answer(ticketId, () => deleteTicketAttachment(session, ticketId, String(fileId)));
+}
+
+/** Marks the ticket read up to when its page was rendered; the lists refresh only when that changed something. */
+export async function markReadAction(ticketId: string, at: string): Promise<void> {
+  const session = await getPortalSession();
+  if (!session) return;
+  const before = await portalTicketUnread(session, ticketId);
+  const res = await markPortalTicketRead(session, ticketId, new Date(at));
+  if (res.ok && before > 0) {
+    revalidatePath("/");
+    revalidatePath("/tickets");
+    revalidatePath("/projects");
+  }
 }

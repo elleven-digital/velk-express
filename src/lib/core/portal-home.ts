@@ -6,7 +6,7 @@ import type { ChargeDeps } from "./charges";
 import { getHoursSummary } from "./hours";
 import { getPortalPaymentsHome, type PortalPaymentsHome } from "./portal-payments";
 import { listPortalQuotes, type PortalQuoteRow } from "./portal-quotes";
-import { listPortalTickets, type PortalTicketRow } from "./portal-tickets";
+import { listPortalTickets, portalSections, type PortalTicketRow } from "./portal-tickets";
 
 /** The hours the client sees; nothing about entries, notes or authors. */
 export type PortalHours = {
@@ -33,13 +33,15 @@ export type PortalHome = {
   proposals: PortalQuoteRow[];
   /** Money: only for the company's admins, null for portal collaborators. */
   payments: PortalPaymentsHome | null;
-  /** Open tickets on the client's turn. */
-  awaiting: PortalTicketRow[];
-  /** The 5 with the newest activity. */
-  recent: PortalTicketRow[];
+  /** Open projects, newest activity first. */
+  projects: PortalTicketRow[];
+  /** Open tickets that are not projects, newest activity first, at most OPEN_TICKETS_ON_HOME. */
+  openTickets: PortalTicketRow[];
+  /** Whether the company gets the tickets part and the projects part at all. */
+  sections: { tickets: boolean; projects: boolean };
 };
 
-const RECENT_TICKETS = 5;
+export const OPEN_TICKETS_ON_HOME = 10;
 
 /**
  * What the portal home shows. The company is always the session's own, so a person who belongs
@@ -54,11 +56,11 @@ export async function getPortalHome(
   const clientId = session.client.id;
   const [client] = await db.select().from(clients).where(eq(clients.id, clientId));
   const rows = await db.select().from(sites).where(eq(sites.clientId, clientId)).orderBy(asc(sites.name));
-  // Two bounded reads instead of every ticket of the company: the newest few, and the ones that
-  // wait on the client (those must be complete, wherever they sit in the history).
-  const [recent, awaiting, proposalsRes, payments] = await Promise.all([
-    listPortalTickets(session, db, { limit: RECENT_TICKETS }),
-    listPortalTickets(session, db, { awaitingOnly: true }),
+  // Bounded reads instead of every ticket of the company: the open ones of each kind.
+  const [openTickets, projects, sections, proposalsRes, payments] = await Promise.all([
+    listPortalTickets(session, db, { openOnly: true, kind: "tickets", limit: OPEN_TICKETS_ON_HOME }),
+    listPortalTickets(session, db, { openOnly: true, kind: "projects" }),
+    portalSections(session, db),
     session.role === "admin" ? listPortalQuotes(session, { db }, { status: "sent" }) : null,
     getPortalPaymentsHome(session, { db, providers: deps.providers }),
   ]);
@@ -83,7 +85,8 @@ export async function getPortalHome(
     coveredCount: rows.filter((s) => s.includedInSupport).length,
     proposals: proposalsRes?.ok ? proposalsRes.value : [],
     payments,
-    awaiting,
-    recent,
+    projects,
+    openTickets,
+    sections,
   };
 }

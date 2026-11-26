@@ -24,24 +24,6 @@ export function whoseTurn(
   return (lastAuthor ?? ticket.createdByType) === "client" ? "agency" : "client";
 }
 
-/**
- * The status dot of a ticket from the viewer's side: amber when it is their move (or, on the
- * agency side, when nobody took the ticket), blue when it is with the other side, gray when done.
- */
-export function turnBadge(
-  turn: Turn,
-  viewer: "agency" | "client",
-  t: Dict,
-  opts: { unassigned?: boolean } = {},
-): { tone: BadgeTone; label: string } {
-  if (turn === "done") return { tone: "muted", label: t.ui.turnDone };
-  if (viewer === "agency") {
-    if (opts.unassigned) return { tone: "warn", label: t.ui.unassigned };
-    return turn === "agency" ? { tone: "warn", label: t.ui.turnYours } : { tone: "info", label: t.ui.turnClient };
-  }
-  return turn === "client" ? { tone: "warn", label: t.ui.turnYours } : { tone: "info", label: t.ui.turnAgency };
-}
-
 /** The ticket's status in the team panel: open or closed, nothing else. */
 export function ticketStatusBadge(status: TicketStatus, t: Dict): { tone: BadgeTone; label: string } {
   return status === "closed"

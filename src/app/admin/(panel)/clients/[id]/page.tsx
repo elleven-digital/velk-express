@@ -33,16 +33,16 @@ function TicketsLink({ clientId, label }: { clientId: string; label: string }) {
   );
 }
 
-/** This cycle's hours for everyone who can open the client: the balance (or just what was used) and the warning. */
+/** This cycle's hours for everyone who can open the client: the balance (or just what was used) and the warning. Nothing while hours aren't tracked. */
 async function HoursCard({ clientId }: { clientId: string }) {
   const [summary, { t, locale }] = await Promise.all([getHoursSummary(clientId), getUserDict()]);
-  if (!summary) return null;
+  if (!summary || !summary.tracked) return null;
   const month = formatCycle(summary.cycle, locale);
   const total = summary.includedMinutes + summary.purchasedMinutes;
   return (
     <div className="mb-5 max-w-xl">
       <Card className="p-4">
-        {summary.tracked && !summary.limited ? (
+        {!summary.limited ? (
           <>
             <h2 className="text-[0.8125rem] font-medium text-muted">{fmt(t.ui.figHours, { month })}</h2>
             <b className="mt-1 block text-[1.5rem] leading-tight font-semibold tracking-[-0.02em] text-ink tabular">
@@ -50,7 +50,7 @@ async function HoursCard({ clientId }: { clientId: string }) {
             </b>
             <p className="mt-0.5 text-[0.8125rem] text-muted">{summary.visible ? t.ui.hoursClientSees : t.ui.hoursTeamOnly}</p>
           </>
-        ) : summary.limited ? (
+        ) : (
           <>
             <div className="mb-1 flex items-baseline justify-between gap-2">
               <h2 className="text-[0.8125rem] font-medium text-muted">{t.ui.hoursBalance}</h2>
@@ -64,12 +64,6 @@ async function HoursCard({ clientId }: { clientId: string }) {
               {formatMinutes(summary.balanceMinutes)}
             </b>
             <ProgressBar value={summary.usedMinutes} max={total} tone={summary.balanceMinutes < 0 ? "danger" : "brand"} />
-          </>
-        ) : (
-          <>
-            <h2 className="text-[0.8125rem] font-medium text-muted">{t.ui.hoursBalance}</h2>
-            <b className="mt-1 block text-[1.5rem] leading-tight font-semibold text-ink">—</b>
-            <p className="mt-0.5 text-[0.8125rem] text-muted">{t.hours.notTracked}</p>
           </>
         )}
       </Card>

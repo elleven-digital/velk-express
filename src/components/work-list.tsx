@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { labelColorOf } from "@/lib/labels";
 import { AssigneeChips } from "./assignees";
-import { Icon } from "./icons";
 import { Avatar, Badge, buttonClasses, Card, cn, MetaLine, type BadgeTone } from "./ui";
 
 /** A box of rows split by lines. */
@@ -72,7 +71,7 @@ export function UnreadCount({ n, label, className }: { n: number; label: string;
     <span
       title={label}
       className={cn(
-        "inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-dot-info text-[0.75rem] font-semibold leading-none text-white tabular",
+        "inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-ink text-[0.75rem] font-semibold leading-none text-white tabular",
         className,
       )}
     >
@@ -181,7 +180,8 @@ export function PortalTicketRow({
   number,
   site,
   when,
-  status,
+  unread,
+  closed,
 }: {
   href: string;
   title: string;
@@ -189,22 +189,28 @@ export function PortalTicketRow({
   /** The site's name; the general label for a ticket without one. */
   site: string;
   when: ReactNode;
-  status: { tone: BadgeTone; label: string };
+  /** Messages the person hasn't read, like a chat app: a bubble, nothing at zero. */
+  unread: { n: number; label: string };
+  /** The "closed" label, for a closed ticket. */
+  closed?: string;
 }) {
   return (
     <div className="relative flex flex-wrap sm:flex-nowrap items-center gap-x-5 gap-y-2 min-h-16 px-3.5 sm:px-4 py-3 hover:bg-paper transition-colors">
-      <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-        <Link href={href} className="block truncate font-medium text-ink after:absolute after:inset-0 after:content-['']">
-          {title}
-        </Link>
-        <MetaLine className="mt-0.5 truncate">
-          <span className="tabular">#{number}</span>
-          {site}
-        </MetaLine>
+      <div className="flex items-center gap-3 min-w-0 basis-full sm:basis-auto sm:flex-1">
+        {unread.n > 0 ? <UnreadCount n={unread.n} label={unread.label} className="flex-none" /> : null}
+        <div className="min-w-0 flex-1">
+          <Link href={href} className="block truncate font-medium text-ink after:absolute after:inset-0 after:content-['']">
+            {title}
+          </Link>
+          <MetaLine className="mt-0.5 truncate">
+            <span className="tabular">#{number}</span>
+            {site}
+          </MetaLine>
+        </div>
       </div>
       <div className="flex sm:flex-col sm:items-end items-center gap-x-3 gap-y-0.5 sm:w-32 flex-none text-muted whitespace-nowrap max-sm:text-[0.8125rem]">
         <span>{when}</span>
-        <Badge tone={status.tone}>{status.label}</Badge>
+        {closed ? <Badge tone="muted">{closed}</Badge> : null}
       </div>
     </div>
   );
@@ -220,6 +226,7 @@ export function ProposalRow({
   title,
   meta,
   status,
+  unread,
   action,
   primary,
 }: {
@@ -228,20 +235,25 @@ export function ProposalRow({
   /** The amounts and the date, already formatted. */
   meta: ReactNode;
   status?: { tone: BadgeTone; label: string };
+  /** Messages the person hasn't read (projects): a bubble left of the title, nothing at zero. */
+  unread?: { n: number; label: string };
   action: string;
   /** Awaiting the client: the black button, shown on every width. */
   primary: boolean;
 }) {
   return (
     <div className="relative flex flex-wrap sm:flex-nowrap items-center gap-x-5 gap-y-2 min-h-16 px-3.5 sm:px-4 py-3 hover:bg-paper transition-colors">
-      <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link href={href} className="truncate font-medium text-ink after:absolute after:inset-0 after:content-['']">
-            {title}
-          </Link>
-          {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
+      <div className="flex items-center gap-3 min-w-0 basis-full sm:basis-auto sm:flex-1">
+        {unread && unread.n > 0 ? <UnreadCount n={unread.n} label={unread.label} className="flex-none" /> : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href={href} className="truncate font-medium text-ink after:absolute after:inset-0 after:content-['']">
+              {title}
+            </Link>
+            {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
+          </div>
+          <MetaLine className="mt-0.5">{meta}</MetaLine>
         </div>
-        <MetaLine className="mt-0.5">{meta}</MetaLine>
       </div>
       <div className={cn("flex-none", !primary && "max-sm:hidden")}>
         <Link href={href} className={cn("relative", buttonClasses(primary ? "primary" : "ghost", "sm"))}>
@@ -284,21 +296,6 @@ export function PaymentTaskRow({
         <a href={href} target="_blank" rel="noopener noreferrer" className={cn("relative", buttonClasses("primary", "sm"))}>
           {action}
         </a>
-      </div>
-    </div>
-  );
-}
-
-/** The quiet green row of the portal home: nothing waits on the person. */
-export function AllClearRow({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="flex items-center gap-3 min-h-16 px-3.5 sm:px-4 py-3">
-      <span aria-hidden="true" className="flex-none grid size-8 place-items-center rounded-full bg-ok-soft text-ok-deep">
-        <Icon name="check" size={16} />
-      </span>
-      <div className="min-w-0">
-        <div className="font-medium text-ink">{title}</div>
-        <div className="text-[0.875rem] text-muted">{text}</div>
       </div>
     </div>
   );

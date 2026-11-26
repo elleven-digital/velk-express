@@ -12,7 +12,7 @@ import { Icon } from "@/components/icons";
 import { Pager } from "@/components/pager";
 import { LocalTime } from "@/components/local-time";
 import { Segmented } from "@/components/shell-nav";
-import { Card, EmptyState, inputClasses, LinkButton, PageHeader, cn } from "@/components/ui";
+import { Badge, Card, EmptyState, inputClasses, LinkButton, PageHeader, cn } from "@/components/ui";
 import { LabelChips, TicketRow, WorkList } from "@/components/work-list";
 
 export const dynamic = "force-dynamic";
@@ -165,7 +165,16 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
               number={ticket.number}
               site={site?.name ?? t.tickets.generalLabel}
               support={ticket.type === "support" ? t.tickets.typeSupportLong : null}
-              tags={<LabelChips labels={ticketLabels} max={2} />}
+              tags={
+                <>
+                  {ticket.isProject ? (
+                    <Badge tone="lav" className="mr-1.5 flex-none">
+                      {t.tickets.projectBadge}
+                    </Badge>
+                  ) : null}
+                  <LabelChips labels={ticketLabels} max={2} />
+                </>
+              }
               assignees={assignees}
               noAssignees={t.tickets.noAssignees}
               when={<LocalTime iso={(ticket.lastMessageAt ?? ticket.createdAt).toISOString()} locale={locale} />}

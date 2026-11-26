@@ -172,6 +172,8 @@ describe("executeQuote", () => {
       [1, "New website", "single", 1000_00, byName["Bia Doces"].id],
       [2, "Shop setup", "single", null, byName["Shop setup"].id],
     ]);
+    // Building a site is a project for the client; a job on a site is a plain ticket.
+    expect(ticketRows.map((t) => t.isProject)).toEqual([true, false]);
     for (const t of ticketRows) {
       expect(t).toMatchObject({ clientId: client.id, createdByType: "agency", createdById: owner.user.id, status: "open" });
     }

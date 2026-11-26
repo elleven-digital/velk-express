@@ -65,7 +65,8 @@ function Errors({ states }: { states: LinkActionState[] }) {
   );
 }
 
-function InviteForm({ action, labels }: { action: Action; labels: PortalUsersLabels }) {
+/** `defaultRole` is admin while the company has no admin, so the usual choice is one click away; the chosen role is always kept. */
+function InviteForm({ action, labels, defaultRole }: { action: Action; labels: PortalUsersLabels; defaultRole: ClientRole }) {
   const [state, formAction] = useActionState(action, null);
   const [dismissed, setDismissed] = useState<unknown>(null);
   const confirm = labels.confirm && state?.confirm && dismissed !== state ? state.confirm : null;
@@ -116,7 +117,7 @@ function InviteForm({ action, labels }: { action: Action; labels: PortalUsersLab
         <Input id="pu-email" name="email" type="email" required maxLength={254} autoComplete="off" defaultValue={v?.email ?? ""} />
       </Field>
       <Field label={labels.role} htmlFor="pu-role" hint={labels.rolesHint}>
-        <Select key={v?.role} id="pu-role" name="role" defaultValue={v?.role ?? "collaborator"}>
+        <Select key={`${v?.role}-${defaultRole}`} id="pu-role" name="role" defaultValue={v?.role ?? defaultRole}>
           {ROLES.map((r) => (
             <option key={r} value={r}>
               {labels.roles[r]}
@@ -126,11 +127,7 @@ function InviteForm({ action, labels }: { action: Action; labels: PortalUsersLab
       </Field>
       <Errors states={[state]} />
       <SubmitButton className="w-full">{labels.inviteButton}</SubmitButton>
-      {state?.ok && !state.link ? (
-        <p role="status" className="text-[0.875rem] font-medium text-ink">
-          {state.ok}
-        </p>
-      ) : null}
+      {state?.ok && !state.link ? <Callout tone="ok" title={state.ok} /> : null}
       <LinkBox state={state} labels={labels} />
     </form>
   );
@@ -148,7 +145,8 @@ function UserControls({ user, actions, labels }: { user: PanelUser; actions: Por
       <div className="flex flex-wrap items-center gap-2">
         <form action={roleFormAction} className="flex items-center gap-2">
           <input type="hidden" name="clientUserId" value={user.id} />
-          <Select name="role" defaultValue={user.role} aria-label={`${labels.role}: ${user.name}`} className="h-8 !w-auto !py-1">
+          {/* keyed by the saved role, so the field shows it after a save instead of the value it started with */}
+          <Select key={user.role} name="role" defaultValue={user.role} aria-label={`${labels.role}: ${user.name}`} className="h-8 !w-auto !py-1">
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {labels.roles[r]}
@@ -182,11 +180,7 @@ function UserControls({ user, actions, labels }: { user: PanelUser; actions: Por
         </form>
       </div>
       <Errors states={[roleState, linkState, removeState]} />
-      {roleState?.ok ? (
-        <p role="status" className="mt-2 text-[0.875rem] font-medium text-ink">
-          {roleState.ok}
-        </p>
-      ) : null}
+      {roleState?.ok ? <Callout tone="ok" title={roleState.ok} className="mt-2" /> : null}
       <LinkBox state={linkState} labels={labels} />
     </div>
   );
@@ -247,7 +241,11 @@ export function PortalUsersPanel({
 
       <Card className="p-6 max-sm:p-4 lg:sticky lg:top-6">
         <SectionTitle className="mb-4">{labels.inviteTitle}</SectionTitle>
-        <InviteForm action={actions.invite} labels={labels} />
+        <InviteForm
+          action={actions.invite}
+          labels={labels}
+          defaultRole={users.some((u) => u.role === "admin") ? "collaborator" : "admin"}
+        />
       </Card>
     </div>
   );

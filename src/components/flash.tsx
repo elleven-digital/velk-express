@@ -6,12 +6,7 @@ export function Flash({ error, ok }: { error?: string; ok?: string }) {
     // Callout marks the danger tone as an alert
     return <Callout tone="danger" title={error} className="mb-6" />;
   }
-  if (ok) {
-    return (
-      <div role="status" className="mb-6">
-        <Callout tone="ok" title={ok} />
-      </div>
-    );
-  }
+  // Callout marks the ok tone as a status
+  if (ok) return <Callout tone="ok" title={ok} className="mb-6" />;
   return null;
 }

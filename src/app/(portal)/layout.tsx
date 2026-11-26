@@ -12,6 +12,7 @@ import { requirePortal } from "@/lib/auth/guards";
 import { listCompanies } from "@/lib/auth/session";
 import { countPendingPortalPayments } from "@/lib/core/portal-payments";
 import { countSentPortalQuotes } from "@/lib/core/portal-quotes";
+import { portalSections } from "@/lib/core/portal-tickets";
 import { getPortalDict } from "@/lib/i18n/server";
 import { switchCompanyAction } from "./actions";
 
@@ -24,12 +25,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requirePortal();
-  const [{ t }, agency, companies, proposalCount, paymentCount] = await Promise.all([
+  const [{ t }, agency, companies, proposalCount, paymentCount, sections] = await Promise.all([
     getPortalDict(),
     getAgency(),
     listCompanies(session.user.id),
     countSentPortalQuotes(session),
     countPendingPortalPayments(session),
+    portalSections(session),
   ]);
   if (!agency) redirect("/install");
 
@@ -37,7 +39,9 @@ export default async function PortalLayout({ children }: { children: React.React
   const logoUrl = logoPath(agency.logoFileId);
   const items: NavItem[] = [
     { href: "/", label: t.portal.navHome, exact: true, icon: "home" },
-    { href: "/tickets", label: t.portal.navTickets, icon: "inbox" },
+    // Tickets while the company has support or has had a ticket; projects once it has had one.
+    ...(sections.tickets ? [{ href: "/tickets", label: t.portal.navTickets, icon: "inbox" as const }] : []),
+    ...(sections.projects ? [{ href: "/projects", label: t.portal.navProjects, icon: "brief" as const }] : []),
     ...(session.role === "admin"
       ? [
           { href: "/quotes", label: t.portal.navQuotes, icon: "file" as const, count: proposalCount },

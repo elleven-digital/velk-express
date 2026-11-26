@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { resetTestDb } from "@/test/db";
 import type { Db } from "@/lib/db/client";
 import { todayInCycleZone } from "@/lib/hours";
@@ -14,7 +14,7 @@ import {
   type PortalSession,
 } from "@/lib/auth/session";
 import { postMessage } from "./messages";
-import { getPortalHome } from "./portal-home";
+import { getPortalHome, OPEN_TICKETS_ON_HOME } from "./portal-home";
 import { openPortalTicket } from "./tickets";
 
 process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
@@ -111,7 +111,7 @@ describe("getPortalHome tickets", () => {
     return res.value.ticketId;
   };
 
-  it("awaiting holds only open tickets on the client's turn, of the active company", async () => {
+  it("open tickets are the active company's open ones, with whose turn it is", async () => {
     await db.update(clients).set({ supportActive: true, generalTicketsEnabled: true }).where(eq(clients.id, B.id));
     const [team] = await db.insert(users).values({ name: "Ana", email: "ana@x.com", role: "owner" }).returning();
     const asTeam = { userType: "agency" as const, user: team };
@@ -125,16 +125,63 @@ describe("getPortalHome tickets", () => {
     await postMessage(asTeam, other, { bodyHtml: "<p>Other</p>" }, { db });
 
     const home = await getPortalHome(asPortal(A, "admin"), db);
-    expect(home.awaiting.map((t) => t.title)).toEqual(["Team answered"]);
-    expect(home.awaiting[0].turn).toBe("client");
-    expect(home.recent.map((t) => t.title).sort()).toEqual(["Agency has it", "Closed one", "Team answered"]);
+    expect(home.openTickets.map((t) => t.title).sort()).toEqual(["Agency has it", "Team answered"]);
+    expect(home.openTickets.find((t) => t.id === waiting)?.unread).toBe(1);
   });
 
-  it("recent holds at most 5, newest activity first", async () => {
-    for (let i = 1; i <= 7; i++) await open(A, `T${i}`);
+  it("open tickets hold at most OPEN_TICKETS_ON_HOME, newest activity first", async () => {
+    for (let i = 1; i <= OPEN_TICKETS_ON_HOME + 2; i++) await open(A, `T${i}`);
     const home = await getPortalHome(asPortal(A, "admin"), db);
-    expect(home.recent).toHaveLength(5);
-    expect(home.recent.map((t) => t.title)).toEqual(["T7", "T6", "T5", "T4", "T3"]);
+    expect(home.openTickets).toHaveLength(OPEN_TICKETS_ON_HOME);
+    expect(home.openTickets[0].title).toBe(`T${OPEN_TICKETS_ON_HOME + 2}`);
+    expect(home.openTickets.at(-1)?.title).toBe("T3");
+  });
+
+  it("projects are apart from the tickets, with whose turn it is", async () => {
+    const [team] = await db.insert(users).values({ name: "Ana", email: "ana@x.com", role: "owner" }).returning();
+    const asTeam = { userType: "agency" as const, user: team };
+    const plain = await open(A, "Plain ticket");
+    const project = await open(A, "New site");
+    const done = await open(A, "Old site");
+    await db.update(tickets).set({ isProject: true }).where(inArray(tickets.id, [project, done]));
+    await db.update(tickets).set({ status: "closed", closedAt: new Date() }).where(eq(tickets.id, done));
+    await postMessage(asTeam, project, { bodyHtml: "<p>Layout ready</p>" }, { db });
+
+    const home = await getPortalHome(asPortal(A, "admin"), db);
+    expect(home.projects.map((t) => t.title)).toEqual(["New site"]);
+    expect(home.openTickets.map((t) => t.id)).toEqual([plain]);
+    expect(home.projects[0].unread).toBe(1);
+    expect(home.sections).toEqual({ tickets: true, projects: true });
+  });
+
+  it("shows tickets only with support or a ticket in the history, and projects only once there is one", async () => {
+    await db.update(clients).set({ supportActive: false }).where(eq(clients.id, A.id));
+    expect((await getPortalHome(asPortal(A, "admin"), db)).sections).toEqual({ tickets: false, projects: false });
+
+    // A project alone (a client who only hired a new site): projects yes, tickets no.
+    const [ticket] = await db
+      .insert(tickets)
+      .values({ number: 900, clientId: A.id, type: "single", title: "New site", isProject: true, createdByType: "agency", createdById: A.id })
+      .returning({ id: tickets.id });
+    expect((await getPortalHome(asPortal(A, "admin"), db)).sections).toEqual({ tickets: false, projects: true });
+
+    // Once the project is done and the company has a plain ticket (even closed), tickets show too.
+    await db.update(tickets).set({ status: "closed", closedAt: new Date() }).where(eq(tickets.id, ticket.id));
+    await db.insert(tickets).values({
+      number: 901,
+      clientId: A.id,
+      type: "single",
+      title: "Fix",
+      status: "closed",
+      closedAt: new Date(),
+      createdByType: "agency",
+      createdById: A.id,
+    });
+    expect((await getPortalHome(asPortal(A, "admin"), db)).sections).toEqual({ tickets: true, projects: true });
+
+    // Support alone is enough for tickets.
+    await db.update(clients).set({ supportActive: true }).where(eq(clients.id, B.id));
+    expect((await getPortalHome(asPortal(B, "admin"), db)).sections).toEqual({ tickets: true, projects: false });
   });
 });
 
@@ -190,12 +237,10 @@ describe("getPortalHome query size", () => {
     } finally {
       counter.restore();
     }
-    expect(home.awaiting.map((t) => t.id).sort()).toEqual([...oldest].sort());
-    expect(home.recent).toHaveLength(5);
-    expect(home.recent.map((t) => t.title)).toEqual(["New 57", "New 56", "New 55", "New 54", "New 53"]);
-    // Two limited ticket queries: never the 60 tickets of the company.
-    expect(Math.max(...counter.rows())).toBeLessThanOrEqual(5 + 3 + 3);
-    expect(counter.rows().filter((n) => n > 5).length).toBeLessThanOrEqual(1);
+    expect(home.openTickets).toHaveLength(OPEN_TICKETS_ON_HOME);
+    expect(home.openTickets[0].title).toBe("New 57");
+    // Limited ticket queries: never the 60 tickets of the company.
+    expect(Math.max(...counter.rows())).toBeLessThanOrEqual(OPEN_TICKETS_ON_HOME);
   });
 });
 

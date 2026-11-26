@@ -171,12 +171,8 @@ export function MemberControls({
               <SubmitButton variant="secondary" size="sm">
                 {labels.saveClients}
               </SubmitButton>
-              {clientsState?.ok ? (
-                <span role="status" className="text-[0.875rem] font-medium text-ink">
-                  {clientsState.ok}
-                </span>
-              ) : null}
             </div>
+            {clientsState?.ok ? <Callout tone="ok" title={clientsState.ok} className="mt-3" /> : null}
           </form>
         </details>
       ) : null}

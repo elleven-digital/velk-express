@@ -30,6 +30,7 @@ import {
   findTicket,
   openPortalTicket,
   removeTicketAssignee,
+  setTicketProject,
   setTicketStatus,
 } from "./tickets";
 
@@ -193,6 +194,32 @@ describe("createTicket (team)", () => {
     if (!r.ok) throw new Error(r.error);
     const [t] = await db.select().from(tickets).where(eq(tickets.id, r.value.ticketId));
     expect(t.title).toBe("a b c");
+  });
+
+  it("marks a project only for owners and managers, on either type", async () => {
+    await db.insert(clientAssignments).values({ clientId: acme.id, userId: collab.user.id });
+    const s = await createTicket(owner, { clientId: acme.id, type: "single", title: "New site", isProject: true }, { db });
+    const p = await createTicket(owner, { clientId: acme.id, type: "support", title: "Redesign", isProject: true }, { db });
+    const c = await createTicket(collab, { clientId: acme.id, type: "single", title: "Forged", isProject: true }, { db });
+    if (!s.ok || !p.ok || !c.ok) throw new Error("create failed");
+    const flag = async (id: string) => (await db.select().from(tickets).where(eq(tickets.id, id)))[0].isProject;
+    expect(await flag(s.value.ticketId)).toBe(true);
+    expect(await flag(p.value.ticketId)).toBe(true);
+    expect(await flag(c.value.ticketId)).toBe(false);
+  });
+
+  it("setTicketProject marks and unmarks, for staff only", async () => {
+    await db.insert(clientAssignments).values({ clientId: acme.id, userId: collab.user.id });
+    const r = await createTicket(owner, { clientId: acme.id, type: "single", title: "x" }, { db });
+    if (!r.ok) throw new Error(r.error);
+    const flag = async () => (await db.select().from(tickets).where(eq(tickets.id, r.value.ticketId)))[0].isProject;
+    expect(await setTicketProject(collab, r.value.ticketId, true, { db })).toEqual({ ok: false, error: "forbidden" });
+    expect(await flag()).toBe(false);
+    expect(await setTicketProject(owner, r.value.ticketId, true, { db })).toEqual({ ok: true, value: undefined });
+    expect(await flag()).toBe(true);
+    expect(await setTicketProject(owner, r.value.ticketId, false, { db })).toEqual({ ok: true, value: undefined });
+    expect(await flag()).toBe(false);
+    expect(await setTicketProject(owner, "nope", true, { db })).toEqual({ ok: false, error: "notFound" });
   });
 
   it("keeps the value only for a single ticket", async () => {

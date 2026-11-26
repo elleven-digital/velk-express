@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { en } from "@/lib/i18n/en";
-import { ticketStatusBadge, turnBadge, whoseTurn } from "./turn";
+import { ticketStatusBadge, whoseTurn } from "./turn";
 
 describe("whoseTurn", () => {
   it("a closed ticket is done", () => {
@@ -17,13 +17,6 @@ describe("whoseTurn", () => {
 });
 
 describe("badges", () => {
-  it("turn badge reads from the viewer's side", () => {
-    expect(turnBadge("done", "client", en).tone).toBe("muted");
-    expect(turnBadge("agency", "agency", en, { unassigned: true }).label).toBe(en.ui.unassigned);
-    expect(turnBadge("agency", "agency", en).label).toBe(en.ui.turnYours);
-    expect(turnBadge("client", "agency", en).label).toBe(en.ui.turnClient);
-    expect(turnBadge("agency", "client", en).label).toBe(en.ui.turnAgency);
-  });
   it("status badge is open or closed", () => {
     expect(ticketStatusBadge("open", en).label).toBe(en.tickets.statusOpen);
     expect(ticketStatusBadge("closed", en).tone).toBe("muted");

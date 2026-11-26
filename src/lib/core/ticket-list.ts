@@ -44,7 +44,7 @@ export type TicketFilters = {
  */
 export type TicketListItem = Pick<
   Ticket,
-  "id" | "number" | "title" | "type" | "status" | "createdByType" | "lastMessageAt" | "createdAt"
+  "id" | "number" | "title" | "type" | "status" | "isProject" | "createdByType" | "lastMessageAt" | "createdAt"
 >;
 
 export type TicketRow = {
@@ -148,6 +148,7 @@ async function selectRows(actor: TeamSession, where: SQL | undefined, limit: num
         title: tickets.title,
         type: tickets.type,
         status: tickets.status,
+        isProject: tickets.isProject,
         createdByType: tickets.createdByType,
         lastMessageAt: tickets.lastMessageAt,
         createdAt: tickets.createdAt,

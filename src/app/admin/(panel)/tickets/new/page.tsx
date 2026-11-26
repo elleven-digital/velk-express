@@ -67,6 +67,8 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
               valueField: fmt(t.tickets.valueField, { currency: agency?.currency ?? "BRL" }),
               valuePlaceholder: moneyPlaceholder(locale),
               valueHint: t.tickets.valueHint,
+              projectToggle: t.tickets.projectToggle,
+              projectHint: t.tickets.projectHint,
               firstMessage: t.tickets.firstMessage,
               submit: t.tickets.createTicket,
               supportNeedsPlan: t.tickets.supportNeedsPlan,

@@ -7,15 +7,15 @@ import { requirePortal } from "@/lib/auth/guards";
 import { getPortalTicketView } from "@/lib/core/portal-tickets";
 import { chatLabelsOf, fileLabelsOf } from "@/lib/chat-labels";
 import { getPortalDict } from "@/lib/i18n/server";
-import { turnBadge } from "@/lib/turn";
 import { TicketFiles } from "@/components/attachments";
 import { ChatThread } from "@/components/chat";
 import { fillNode } from "@/components/fill-node";
 import { Icon } from "@/components/icons";
 import { LocalTime } from "@/components/local-time";
+import { MarkRead } from "@/components/mark-read";
 import { StickyFill } from "@/components/sticky-fill";
 import { Badge, buttonClasses, PageHeader } from "@/components/ui";
-import { attachFilesAction, deleteMessageAction, editMessageAction, removeFileAction, sendMessageAction } from "./actions";
+import { attachFilesAction, deleteMessageAction, editMessageAction, markReadAction, removeFileAction, sendMessageAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,19 +31,20 @@ export default async function PortalTicketPage({ params }: { params: Promise<{ i
   if (!view) notFound();
   const { ticket } = view;
   const closed = ticket.status === "closed";
-  const status = turnBadge(view.turn, "client", t);
   const fileLabels = fileLabelsOf(t);
   const charge = view.charge;
   const chargeMoney = charge ? formatMoney(charge.amountCents, (charge.currency || agency?.currency || "BRL") as Currency, locale) : null;
 
   return (
     <div>
+      {/* from the browser, after the page is on screen: never while rendering or prefetching */}
+      <MarkRead action={markReadAction.bind(null, ticket.id)} at={view.renderedAt} />
       <Link
-        href="/tickets"
+        href={ticket.isProject ? "/projects" : "/tickets"}
         className="inline-flex items-center gap-1 mb-3 text-[0.875rem] text-muted hover:text-ink transition-colors"
       >
         <Icon name="chevron" size={14} className="rotate-90" />
-        {t.portal.backToTickets}
+        {ticket.isProject ? t.portal.backToProjects : t.portal.backToTickets}
       </Link>
       <PageHeader
         crumb={null}
@@ -57,7 +58,7 @@ export default async function PortalTicketPage({ params }: { params: Promise<{ i
         }
         meta={
           <>
-            <Badge tone={status.tone}>{status.label}</Badge>
+            {closed ? <Badge tone="muted">{t.tickets.statusClosed}</Badge> : null}
             {charge?.status === "paid" ? (
               <Badge tone="ok">
                 {t.charges.statusPaid} · {chargeMoney}
