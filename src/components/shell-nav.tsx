@@ -210,7 +210,7 @@ export function BottomTabs({
   const tabClass = (active: boolean) =>
     cn(
       "relative flex flex-1 flex-col items-center gap-1 py-1.5 text-[0.6875rem] transition-colors",
-      active ? "font-medium text-ink" : "text-muted"
+      active ? "font-semibold text-ink" : "text-muted"
     );
 
   return (
@@ -226,7 +226,7 @@ export function BottomTabs({
             aria-current={item === current ? "page" : undefined}
             className={tabClass(item === current)}
           >
-            <Icon name={item.icon ?? "home"} size={20} />
+            <Icon name={item.icon ?? "home"} size={22} />
             <span className="truncate max-w-full">{item.label}</span>
             {item.count ? (
               <em className="absolute top-0 left-1/2 ml-1.5 min-w-4 h-4 px-1 rounded-full bg-ink text-white not-italic text-[0.625rem] font-medium leading-4 text-center tabular">
@@ -243,7 +243,7 @@ export function BottomTabs({
             onClick={() => setOpen((v) => !v)}
             className={tabClass(open || restActive)}
           >
-            <Icon name="menu" size={20} />
+            <Icon name="menu" size={22} />
             <span>{moreLabel}</span>
           </button>
         ) : null}
@@ -418,9 +418,12 @@ export function ShellNav({
         {/* a page marked data-bleed (a ticket's conversation) has no top bar: its box runs the screen's
             height, and on phones only its messages scroll */}
         <div className="group/shell flex-1 min-w-0 flex flex-col min-h-screen max-lg:h-full max-lg:min-h-0">
+          {/* Sticky and opaque at the very top: installed as an app on an iPhone (iOS 26), the system
+              only skips its blur under the status bar when an opaque fixed or sticky bar touches the
+              top edge, and takes that bar's color instead. */}
           <header
             className={cn(
-              "h-14 flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6 group-has-[[data-bleed]]/shell:hidden",
+              "max-lg:sticky max-lg:top-0 max-lg:z-20 box-content h-14 pt-[env(safe-area-inset-top)] flex-none flex items-center gap-3 border-b border-line bg-white px-4 sm:px-6 group-has-[[data-bleed]]/shell:hidden",
               !crumbBar && "lg:hidden",
             )}
           >

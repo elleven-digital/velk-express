@@ -75,7 +75,7 @@ export function ConversationLayout({
           top={0}
           bottom={0}
           className={
-            "min-w-0 flex flex-col bg-white px-4 pt-[max(env(safe-area-inset-top),1.25rem)] pb-3 max-lg:h-full " +
+            "max-lg:sticky max-lg:top-0 min-w-0 flex flex-col bg-white px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-3 max-lg:h-full " +
             "lg:sticky lg:top-0 lg:h-dvh lg:border-r lg:border-line lg:px-8 lg:pt-7 lg:pb-6"
           }
         >
