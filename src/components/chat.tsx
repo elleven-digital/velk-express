@@ -352,13 +352,13 @@ export function ChatThread({
                 </header>
                 <div
                   id={`msg-${m.id}`}
-                  className="sm:ml-[38px] rounded-lg border border-line bg-paper px-4 py-3 text-[0.90625rem] leading-[1.6] text-ink transition-shadow"
+                  className="sm:ml-[38px] rounded-lg border border-line bg-white px-4 py-3 text-[0.90625rem] leading-[1.6] text-ink transition-shadow"
                 >
                   {m.replyTo ? (
                     <button
                       type="button"
                       onClick={() => jumpTo(m.replyTo!.id)}
-                      className="block w-full text-left mb-2 rounded border-l-2 border-line-strong bg-white px-2.5 py-1.5 text-[0.8125rem] text-muted"
+                      className="block w-full text-left mb-2 rounded border-l-2 border-line-strong bg-paper px-2.5 py-1.5 text-[0.8125rem] text-muted"
                     >
                       <span className="block font-medium text-ink">{m.replyTo.authorName}</span>
                       {m.replyTo.deleted ? (
@@ -430,7 +430,7 @@ export function ChatThread({
 
       {/* composer */}
       {closedNotice ? (
-        <div className="flex-none sm:ml-[38px] rounded-lg border border-line bg-paper px-4 py-3 text-center text-muted">
+        <div className="flex-none sm:ml-[38px] rounded-lg border border-line bg-white px-4 py-3 text-center text-muted">
           {closedNotice}
         </div>
       ) : (
@@ -444,7 +444,7 @@ export function ChatThread({
         >
           {replyTo ? (
             // the whole message being answered, so it is clearly the right one
-            <div className="rounded-md border border-line bg-paper text-[0.8125rem]">
+            <div className="rounded-md border border-line bg-white text-[0.8125rem]">
               <div className="flex items-center justify-between gap-3 px-3 pt-2">
                 <span className="font-medium text-ink truncate">{labels.replyingTo.replace("{name}", replyTo.name)}</span>
                 <button
