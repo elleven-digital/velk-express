@@ -127,11 +127,7 @@ function InviteForm({ action, labels, defaultRole }: { action: Action; labels: P
       </Field>
       <Errors states={[state]} />
       <SubmitButton className="w-full">{labels.inviteButton}</SubmitButton>
-      {state?.ok && !state.link ? (
-        <p role="status" className="text-[0.875rem] font-medium text-ink">
-          {state.ok}
-        </p>
-      ) : null}
+      {state?.ok && !state.link ? <Callout tone="ok" title={state.ok} /> : null}
       <LinkBox state={state} labels={labels} />
     </form>
   );
@@ -184,11 +180,7 @@ function UserControls({ user, actions, labels }: { user: PanelUser; actions: Por
         </form>
       </div>
       <Errors states={[roleState, linkState, removeState]} />
-      {roleState?.ok ? (
-        <p role="status" className="mt-2 text-[0.875rem] font-medium text-ink">
-          {roleState.ok}
-        </p>
-      ) : null}
+      {roleState?.ok ? <Callout tone="ok" title={roleState.ok} className="mt-2" /> : null}
       <LinkBox state={linkState} labels={labels} />
     </div>
   );

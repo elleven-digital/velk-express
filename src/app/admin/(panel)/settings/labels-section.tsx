@@ -28,13 +28,7 @@ export type LabelsTexts = {
 
 function Notice({ state }: { state: SettingsState }) {
   if (state?.error) return <Callout tone="danger" title={state.error} />;
-  if (state?.ok) {
-    return (
-      <div role="status">
-        <Callout tone="ok" title={state.ok} />
-      </div>
-    );
-  }
+  if (state?.ok) return <Callout tone="ok" title={state.ok} />;
   return null;
 }
 

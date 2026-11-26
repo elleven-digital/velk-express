@@ -44,11 +44,7 @@ export function RotationForm({
         )}
       </div>
       {state?.error ? <Callout tone="danger" title={state.error} /> : null}
-      {state?.ok ? (
-        <div role="status" className="text-[0.875rem] font-medium text-ink">
-          {state.ok}
-        </div>
-      ) : null}
+      {state?.ok ? <Callout tone="ok" title={state.ok} /> : null}
       <div className="flex justify-end">
         <SubmitButton size="sm">{labels.save}</SubmitButton>
       </div>

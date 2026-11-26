@@ -54,11 +54,7 @@ export function QuoteExecute({
         </form>
       ) : null}
       {state?.error ? <Callout tone="danger" title={state.error} /> : null}
-      {state?.ok && !state.link ? (
-        <div role="status">
-          <Callout tone="ok" title={state.ok} />
-        </div>
-      ) : null}
+      {state?.ok && !state.link ? <Callout tone="ok" title={state.ok} /> : null}
       <LinkBox state={state} labels={labels.link} />
     </div>
   );

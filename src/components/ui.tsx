@@ -269,10 +269,12 @@ export function Callout({
     info: { name: "clock", color: "text-muted" },
     ok: { name: "check", color: "text-dot-ok" },
   };
+  // Success reads as a green band: the tint tells it apart from a hint at a glance.
+  const fill = tone === "ok" ? "bg-[color-mix(in_srgb,var(--color-dot-ok)_9%,#fff)]" : "bg-white";
   return (
     <div
-      role={tone === "danger" ? "alert" : undefined}
-      className={cn("flex items-start gap-3 rounded-card border bg-white px-4 py-3", ring, className)}
+      role={tone === "danger" ? "alert" : tone === "ok" ? "status" : undefined}
+      className={cn("flex items-start gap-3 rounded-card border px-4 py-3", fill, ring, className)}
     >
       <Icon name={icon[tone].name} className={cn("mt-0.5", icon[tone].color)} />
       <div className="min-w-0 flex-1 text-[0.875rem]">

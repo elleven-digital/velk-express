@@ -15,13 +15,7 @@ export type ClientLabels = Dict["clients"];
 /** The answer to the last submit of one form: what went wrong, or that it was saved. */
 function Notice({ state }: { state: ClientState }) {
   if (state?.error) return <Callout tone="danger" title={state.error} />;
-  if (state?.ok) {
-    return (
-      <div role="status" className="text-[0.875rem] font-medium text-ink">
-        {state.ok}
-      </div>
-    );
-  }
+  if (state?.ok) return <Callout tone="ok" title={state.ok} />;
   return null;
 }
 

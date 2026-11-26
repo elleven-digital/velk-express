@@ -3,7 +3,7 @@
 import { useActionState, useId } from "react";
 import type { ChargeState } from "@/app/admin/(panel)/charges/charge-state";
 import { SubmitButton } from "./submit-button";
-import { Field, Input, Select } from "./ui";
+import { Callout, Field, Input, Select } from "./ui";
 
 export type ChargeCreateLabels = {
   provider: string;
@@ -60,9 +60,7 @@ export function ChargeCreate({
       {state.error}
     </p>
   ) : state?.ok ? (
-    <p role="status" className="basis-full text-[0.8125rem] font-medium text-ink">
-      {state.ok}
-    </p>
+    <Callout tone="ok" title={state.ok} className="basis-full" />
   ) : null;
 
   if (compact) {

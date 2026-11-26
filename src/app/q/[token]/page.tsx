@@ -85,7 +85,7 @@ export default async function PublicQuotePage({
           ) : null}
 
           {decided ? (
-            <div role="status" className="mb-6">
+            <div className="mb-6">
               <Callout
                 tone="ok"
                 title={
@@ -104,7 +104,7 @@ export default async function PublicQuotePage({
           ) : null}
 
           {quote.charge?.status === "paid" ? (
-            <div role="status" className="mb-6">
+            <div className="mb-6">
               <Callout tone="ok" title={t.charges.paymentConfirmed}>
                 {quote.charge.paidAt ? (
                   <>

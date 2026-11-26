@@ -37,11 +37,7 @@ export function QuoteSend({
         {labels.send}
       </SubmitButton>
       {state?.error ? <Callout tone="danger" title={state.error} /> : null}
-      {state?.ok ? (
-        <p role="status" className="text-[0.875rem] font-medium text-ink">
-          {state.ok}
-        </p>
-      ) : null}
+      {state?.ok ? <Callout tone="ok" title={state.ok} /> : null}
     </form>
   );
 }
